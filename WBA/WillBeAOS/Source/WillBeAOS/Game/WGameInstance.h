@@ -19,6 +19,7 @@ class WILLBEAOS_API UWGameInstance : public UGameInstance
 {
 	GENERATED_BODY()
 
+protected:
 	virtual void Init() override;
 
 	int32 CurrentGameVersion = 100;

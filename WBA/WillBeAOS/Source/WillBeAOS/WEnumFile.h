@@ -64,7 +64,17 @@ enum class E_GamePlay : uint8
 UENUM(BlueprintType)
 enum class E_TurningInPlace : uint8
 {
-	E_NotTurning UMETA(DisplayName = "NotTurning"),
-	E_TurningLeft UMETA(DisplayName = "TurnLeft"),
-	E_TurningRight UMETA(DisplayName = "TurnRight")
+	E_NotTurning			UMETA(DisplayName = "NotTurning"),
+	E_TurningLeft_90		UMETA(DisplayName = "TurnLeft_90"),
+	E_TurningLeft_180		UMETA(DisplayName = "TurnLeft_180"),
+	E_TurningRight_90		UMETA(DisplayName = "TurnRight_90"),
+	E_TurningRight_180		UMETA(DisplayName = "TurnRight_180")
+};
+
+UENUM(BlueprintType)
+enum class E_RootYawOffsetMode : uint8
+{
+	Accumulate,
+	BlendOut,
+	Hold
 };

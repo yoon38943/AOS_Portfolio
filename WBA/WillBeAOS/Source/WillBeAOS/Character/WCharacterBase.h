@@ -13,6 +13,7 @@
 
 #define PLAYERKILLGOLD 100
 
+struct FGameplayTag;
 class UGameplayAbility;
 class UWCharAnimInstance;
 class AGamePlayerState;
@@ -35,6 +36,11 @@ public:
 	AWCharacterBase();
 	void ServerSideInit();
 	void ClientSideInit();
+
+	bool bIsCombat;
+	void RegisterTagEvent();
+	UFUNCTION()
+	void OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount);
 	
 protected:
 	//컴포넌트
@@ -47,12 +53,11 @@ protected:
 
 	void AimOffset(float DeltaTime);
 
-	void SetCombatRotationMode(bool bIsAiming);
-
 public:
-	UCameraComponent* GetFollowCamera() const { return FollowCamera; };
+	UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	
-public:
+public:	
 	FRotator StartAimRotation;
 	UPROPERTY(Replicated)
 	FRotator ControllerRotation;
@@ -66,15 +71,22 @@ public:
 	void Server_SetYaw(float YawValue);
 	UPROPERTY(BlueprintReadOnly, Category = Movement)
 	float InterpAOYaw;
-	
-	E_TurningInPlace TurningInPlace;
 
-	FORCEINLINE E_TurningInPlace GetTurningInPlace() const { return TurningInPlace; }
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RootYawOffset)
+	float CachedRootYawOffset = 0.f;
 
-	void TurnInPlace(float DeltaTime);
+	UFUNCTION()
+	void OnRep_RootYawOffset(float ServerRootYawOffset);
+
+	UFUNCTION(Server, Reliable)
+	void Server_UpdateRootYawOffset(float InRootYawOffset);
+
+public:
 	
 	UPROPERTY(Replicated)
 	E_TeamID CharacterTeam;
+
+	void SetTeamCollision();
 	
 	// HP Widget 관련
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -134,6 +146,8 @@ public:
 	// GAS 시스템
 	/*********************************************************/
 
+	bool bIsSetForward = true;
+
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Gameplay Ability")
@@ -155,6 +169,7 @@ public:
 	void MoveDecalToCameraForward();
 	
 public:
+	UPROPERTY(BlueprintReadOnly)
 	UWCharAnimInstance* Anim;
 	UPROPERTY(BlueprintReadWrite, Category = "Health")
 	UAnimMontage* DeadAnimMontage;
@@ -193,11 +208,7 @@ public:
 
 	UAnimMontage* GetStartRecallMontage() const { return StartRecallMontage; }
 	UAnimMontage* GetCompleteRecallMontage() const { return CompleteRecallMontage; }
-
-	/*UFUNCTION(Server, Reliable)
-	void ServerPlayMontage(UAnimMontage* Montage);
-	UFUNCTION(NetMulticast, Reliable)
-	void NM_StopPlayMontage();*/
+	
 	UFUNCTION(NetMulticast, Reliable)
 	void MultiPlayMontage(UAnimMontage* Montage);
 

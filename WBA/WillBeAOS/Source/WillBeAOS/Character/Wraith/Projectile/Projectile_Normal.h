@@ -11,12 +11,16 @@ class WILLBEAOS_API AProjectile_Normal : public AActor
 {
 	GENERATED_BODY()
 
+
 private:
 	UPROPERTY(EditAnywhere)
 	UParticleSystemComponent* ProjectileParticle;
 
 	UPROPERTY(EditAnywhere)
 	UProjectileMovementComponent* ProjectileMovement;
+
+	FVector StartLocation;
+	float HitPointDistSquared;
 	
 public:	
 	AProjectile_Normal();
@@ -26,8 +30,10 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 
 public:
-	FVector OwnerLocation;
-	float TraceLength;
+	UPROPERTY(BlueprintReadWrite, meta = (ExposeOnSpawn = true))
+	bool bIsLocallyControlled;
+	UPROPERTY(BlueprintReadWrite, meta = (ExposeOnSpawn = true))
+	FVector TargetPoint;
+	UPROPERTY(BlueprintReadWrite, meta = (ExposeOnSpawn = true))
 	float BulletSpeed;
-	bool bReady = false;
 };

@@ -1,11 +1,10 @@
 #include "PersistentGame/PlayGameMode.h"
 
-#if WITH_GAMELIFT
+#if defined(WITH_GAMELIFT) && WITH_GAMELIFT
 #include "GameLiftServerSDK.h"
 #endif
 #include "GamePlayerController.h"
 #include "GamePlayerState.h"
-#include "NavigationSystem.h"
 #include "PlayGameState.h"
 #include "Character/AOSActor.h"
 #include "Character/AOSCharacter.h"
@@ -417,7 +416,7 @@ void APlayGameMode::OnNexusDestroyed(E_TeamID LoseTeam)
 
 	bIsGameEnded = true;
 
-#if WITH_GAMELIFT
+#if defined(WITH_GAMELIFT) && WITH_GAMELIFT
 	// GameLift에게 더 이상 새로운 플레이어 세션을 만들지 못하게 막음.
 	FGameLiftServerSDKModule* GameLiftSdkModule = &FModuleManager::LoadModuleChecked<FGameLiftServerSDKModule>(FName("GameLiftServerSDK"));
 	GameLiftSdkModule->UpdatePlayerSessionCreationPolicy(EPlayerSessionCreationPolicy::DENY_ALL);

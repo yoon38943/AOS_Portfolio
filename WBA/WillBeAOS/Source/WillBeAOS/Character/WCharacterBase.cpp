@@ -49,6 +49,9 @@ AWCharacterBase::AWCharacterBase()
 	SightComp = CreateDefaultSubobject<UVisibleWidgetComponent>(TEXT("SightComponent"));
 
 	WAbilitySystemComponent = CreateDefaultSubobject<UWAbilitySystemComponent>(TEXT("ASC"));
+	WAbilitySystemComponent->SetIsReplicated(true);
+	WAbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Full);
+	
 	WAttributeSet = CreateDefaultSubobject<UWAttributeSet>(TEXT("AttributeSet"));
 
 	SetReplicateMovement(true);
@@ -56,10 +59,13 @@ AWCharacterBase::AWCharacterBase()
 
 	SetGoldReward(PLAYERKILLGOLD);
 
-	bUseControllerRotationYaw = false;
-	TurningInPlace = E_TurningInPlace::E_NotTurning;
-
 	bReplicates = true;
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->NetworkSmoothingMode = ENetworkSmoothingMode::Linear;
+		MoveComp->NetworkSimulatedSmoothRotationTime = 0.1f;
+	}
 }
 
 void AWCharacterBase::ServerSideInit()
@@ -72,6 +78,18 @@ void AWCharacterBase::ServerSideInit()
 void AWCharacterBase::ClientSideInit()
 {
 	WAbilitySystemComponent->InitAbilityActorInfo(this, this);
+}
+
+void AWCharacterBase::RegisterTagEvent()
+{
+	WAbilitySystemComponent->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag("state.combat"),
+		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AWCharacterBase::OnCombatTagChanged);
+}
+
+void AWCharacterBase::OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	bIsCombat = (NewCount > 0);
 }
 
 void AWCharacterBase::HandleAbilityInputPressed(const FInputActionValue& Value, EWAbilityInputID InputID)
@@ -144,6 +162,8 @@ void AWCharacterBase::BeginPlay()
 	{
 		Anim = Cast<UWCharAnimInstance>(AnimInstance);
 	}
+
+	SetTeamCollision();
 }
 
 void AWCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -212,16 +232,12 @@ void AWCharacterBase::AimOffset(float DeltaTime)
 			Yaw = DeltaRot.Yaw;
 			Server_SetYaw(Yaw);
 		}
-		
-		bUseControllerRotationYaw = false;
-		TurnInPlace(DeltaTime);
 	}
 	if (Speed > 0.f)
 	{
 		StartAimRotation = FRotator(0.f, GetBaseAimRotation().Yaw, 0.f);
-		bUseControllerRotationYaw = true;
+		//bUseControllerRotationYaw = true;
 		Yaw = 0.f;
-		TurningInPlace = E_TurningInPlace::E_NotTurning;
 	}
 
 	if (IsLocallyControlled())
@@ -233,26 +249,11 @@ void AWCharacterBase::AimOffset(float DeltaTime)
 		// 원격 플레이어는 서버가 복제해준 RemoteViewPitch를 각도로 변환해서 사용
 		// RemoteViewPitch는 0~255 사이의 바이트 값이므로 다시 각도로 바꿔야 합니다.
 		Pitch = RemoteViewPitch * 360.f / 255.f;
-	}
-	
-	if (Pitch > 90.f && !IsLocallyControlled())
-	{
-		FVector2D InRange(270.f, 360.f);
-		FVector2D OutRange(-90.f, 0.f);
-		Pitch = FMath::GetMappedRangeValueClamped(InRange, OutRange, Pitch);
-	}
-}
 
-void AWCharacterBase::SetCombatRotationMode(bool bIsAiming)
-{
-	if (bIsAiming)
-	{
-		GetCharacterMovement()->bUseControllerDesiredRotation = true;
-		GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
-	}
-	else
-	{
-		GetCharacterMovement()->bUseControllerDesiredRotation = false;
+		if (Pitch > 180.f)
+		{
+			Pitch -= 360.f;
+		}
 	}
 }
 
@@ -266,30 +267,25 @@ void AWCharacterBase::Server_SetYaw_Implementation(float YawValue)
 	Yaw = YawValue;
 }
 
-void AWCharacterBase::TurnInPlace(float DeltaTime)
+void AWCharacterBase::OnRep_RootYawOffset(float ServerRootYawOffset)
 {
-	if (Yaw > 90.f && !IsRecalling)
+	CachedRootYawOffset = ServerRootYawOffset;
+}
+
+void AWCharacterBase::Server_UpdateRootYawOffset_Implementation(float InRootYawOffset)
+{
+	CachedRootYawOffset = InRootYawOffset;
+}
+
+void AWCharacterBase::SetTeamCollision()
+{
+	if (TeamID == E_TeamID::Blue)
 	{
-		TurningInPlace = E_TurningInPlace::E_TurningRight;
+		TeamTraceCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
 	}
-	else if (Yaw < -90.f && !IsRecalling)
+	if (TeamID == E_TeamID::Red)
 	{
-		TurningInPlace = E_TurningInPlace::E_TurningLeft;
-	}
-	if (TurningInPlace != E_TurningInPlace::E_NotTurning)
-	{
-		FRotator CurrentRotation = GetActorRotation();
-		FRotator TargetRotation = FRotator(0.f, GetControlRotation().Yaw, 0.f);
-       
-		// 회전 속도를 직접 제어 (250.f)
-		FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 8.0f); 
-		SetActorRotation(NewRotation);
-        
-		if (FMath::Abs(Yaw) < 5.f)
-		{
-			TurningInPlace = E_TurningInPlace::E_NotTurning;
-			StartAimRotation = FRotator(0.f, GetBaseAimRotation().Yaw, 0.f);
-		}
+		TeamTraceCollision->SetCollisionObjectType(TeamCollision::RedTeam);
 	}
 }
 
@@ -410,10 +406,6 @@ void AWCharacterBase::Move(const FInputActionValue& Value)
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
-
-	FRotator ControlRot = GetControlRotation();
-	FRotator OnlyYaw = FRotator(0.f, ControlRot.Yaw, 0.f);
-	Server_SetControlRotationYaw(OnlyYaw);
 }
 
 void AWCharacterBase::StopMove(const FInputActionValue& Value)
@@ -711,8 +703,8 @@ void AWCharacterBase::C_BeingDead_Implementation(AGamePlayerController* PC)
 		PC->ShowRespawnWidget();
 	}
 
-	//죽으면 카메라 움직임에 메쉬 따라 움직이지 않게 하기
-	this->bUseControllerRotationYaw = false;
+	/*//죽으면 카메라 움직임에 메쉬 따라 움직이지 않게 하기
+	this->bUseControllerRotationYaw = false;*/
 
 	// 죽으면 카메라 회전 못하게 하기
 	PC->SetIgnoreLookInput(true);
@@ -811,6 +803,7 @@ void AWCharacterBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>
 	DOREPLIFETIME(ThisClass, CharacterTeam);
 	DOREPLIFETIME(ThisClass, ControllerRotation);
 	DOREPLIFETIME(ThisClass, Yaw);
+	DOREPLIFETIME(ThisClass, CachedRootYawOffset);
 	DOREPLIFETIME(ThisClass, IsCombat);
 	DOREPLIFETIME(ThisClass, bIsQSkillUsing);
 	DOREPLIFETIME(ThisClass, bIsESkillUsing);

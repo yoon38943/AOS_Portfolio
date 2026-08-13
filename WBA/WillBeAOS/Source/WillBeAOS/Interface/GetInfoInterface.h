@@ -5,7 +5,15 @@
 #include "UObject/Interface.h"
 #include "GetInfoInterface.generated.h"
 
+namespace TeamCollision
+{
+	constexpr ECollisionChannel AOS_Pawn = ECC_GameTraceChannel1;
+	constexpr ECollisionChannel BlueTeam = ECC_GameTraceChannel2;
+	constexpr ECollisionChannel RedTeam = ECC_GameTraceChannel3;
+}
+
 UINTERFACE(MinimalAPI)
+
 class UGetInfoInterface : public UInterface
 {
 	GENERATED_BODY()
@@ -14,6 +22,9 @@ class UGetInfoInterface : public UInterface
 class WILLBEAOS_API IGetInfoInterface
 {
 	GENERATED_BODY()
+
+protected:
+	
 
 public:	//골드 관련
 	virtual int32 GetGoldReward() const = 0;

@@ -8,8 +8,17 @@ AAOSCharacter::AAOSCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	TeamTraceCollision = CreateDefaultSubobject<UCapsuleComponent>(TEXT("TeamTraceCollision"));
+	TeamTraceCollision->SetupAttachment(GetRootComponent());
+
+	TeamTraceCollision->SetReceivesDecals(false);
 	GetCapsuleComponent()->SetReceivesDecals(false);
 	GetMesh()->SetReceivesDecals(false);
+}
+
+UCapsuleComponent* AAOSCharacter::GetTeamIDCollision()
+{
+	return TeamTraceCollision;
 }
 
 void AAOSCharacter::BeginPlay()

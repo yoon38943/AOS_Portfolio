@@ -123,22 +123,6 @@ public:	//상점 관련
 	UFUNCTION(Client, Reliable)
 	void SetIsOpenStore(bool CanOpen);
 	
-public:
-	// ---- 귀환 관련 함수 ----
-	UPROPERTY(Replicated)
-	bool IsRecalling = false;
-	FTimerHandle RecallTimerHandle;
-	UPROPERTY(BlueprintReadWrite)
-	float RecallTime = 8.f;
-	
-	UFUNCTION(Client, Reliable)
-	void SetClientControlRotation(FRotator ControlRot);
-
-	UPROPERTY(EditDefaultsOnly, Category = UI)
-	TSubclassOf<UUserWidget> RecallWidgetClass;
-	UPROPERTY(EditDefaultsOnly, Category = UI)
-	UUserWidget* RecallWidget;
-	
 
 public://리스폰
 	UPROPERTY(BlueprintReadWrite)

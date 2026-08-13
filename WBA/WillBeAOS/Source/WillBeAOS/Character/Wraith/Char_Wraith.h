@@ -43,19 +43,7 @@ protected:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AProjectile_QSkill> Projectile_QSkill;
 
-public:
-	
-	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_ChangeMode)
-	ShootingMode shootingMode = ShootingMode::NonCombat;
-
-	UFUNCTION()
-	void OnRep_ChangeMode();
-	
-	UFUNCTION(Server, Reliable)
-	void Server_ChangeShootingMode(ShootingMode Mode);
-
-	virtual void ServerChangeCombatMode(bool isCombat) override;
-	
+public:	
 	AActor* LastTarget;
 	// 타겟팅 관련
 	TOptional<FHitResult> CheckTargettingInCenter();

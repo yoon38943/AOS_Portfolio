@@ -4,6 +4,7 @@
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineSubsystemUtils.h"
+#include "AbilitySystemGlobals.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Network/WNetStatics.h"
@@ -18,6 +19,8 @@
 void UWGameInstance::Init()
 {
 	Super::Init();
+
+	UAbilitySystemGlobals::Get().InitGlobalData();
 
 #if WITH_GAMELIFT
     if (IsRunningDedicatedServer())

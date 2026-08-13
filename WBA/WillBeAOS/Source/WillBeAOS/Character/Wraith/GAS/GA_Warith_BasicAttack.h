@@ -4,6 +4,9 @@
 #include "GAS/WGameplayAbility.h"
 #include "GA_Warith_BasicAttack.generated.h"
 
+class AProjectile_Normal;
+class AWCharacterBase;
+
 UCLASS()
 class WILLBEAOS_API UGA_Warith_BasicAttack : public UWGameplayAbility
 {
@@ -11,17 +14,41 @@ class WILLBEAOS_API UGA_Warith_BasicAttack : public UWGameplayAbility
 	
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 private:
+	UPROPERTY()
+	UAbilitySystemComponent* ASC;
+	
+	UPROPERTY()
+	AWCharacterBase* Avatar;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* BasicAttack_Montage;
 
-	void PerformAttack();
+	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	TSubclassOf<UGameplayEffect> Wraith_BasicAttack_Effect;
 
-	void ShootAttack();
+	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	TSubclassOf<AProjectile_Normal> ProjectileClass;
 
-	static FGameplayTag GetBasicAttackEventTag();
+	float NormalAttackDistance = 1200.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	float BulletSpeed = 12000.f;
 
 	UFUNCTION()
-	void JumpToNextShoot(FGameplayEventData Data);
+	void PerformAttack(FGameplayEventData Data);
+	
+	UFUNCTION()
+	void OnTargetDataReady(const FGameplayAbilityTargetDataHandle& Data);
+
+	void LineTraceHit(FVector TraceStart, FVector TraceEnd, FHitResult& HitResult);
+
+	void SpawnFakeBulletCue(FVector StrikePoint);
+
+	void ServerApplyDamage(FHitResult HitResult);
+
+	static FGameplayTag GetAttackFireEventTag();
+	static FGameplayTag GetSpawnBulletCueEventTag();
 };

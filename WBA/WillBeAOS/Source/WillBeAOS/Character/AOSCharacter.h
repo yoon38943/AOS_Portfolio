@@ -10,8 +10,14 @@ class WILLBEAOS_API AAOSCharacter : public ACharacter, public IGetInfoInterface
 {
 	GENERATED_BODY()
 
+protected:
+	UPROPERTY(EditDefaultsOnly)
+	UCapsuleComponent* TeamTraceCollision;
+
 public:
 	AAOSCharacter();
+
+	UCapsuleComponent* GetTeamIDCollision();
 
 	UPROPERTY(BlueprintReadWrite)
 	class ATower* TowerWithCharacterInside;

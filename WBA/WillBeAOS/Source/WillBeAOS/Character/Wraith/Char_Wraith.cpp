@@ -28,6 +28,8 @@ AChar_Wraith::AChar_Wraith()
 	TrajectorySpline = CreateDefaultSubobject<USplineComponent>(TEXT("TrajectorySpline"));
 	TrajectorySpline->SetupAttachment(RootComponent);
 	TrajectorySpline->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+
+	bIsSetForward = false;
 }
 
 void AChar_Wraith::BeginPlay()
@@ -70,14 +72,6 @@ void AChar_Wraith::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	if (bIsDead) return;
-
-	if (!IsCombat && !bIsQSkillUsing && !bIsESkillUsing)
-	{
-		if (shootingMode != ShootingMode::NonCombat)
-		{
-			shootingMode = ShootingMode::NonCombat;
-		}
-	}
 
 	if (!HasAuthority() && IsLocallyControlled())
 	{
@@ -382,8 +376,6 @@ void AChar_Wraith::NM_HitEffect_Implementation(const FVector& HitLocation)
 
 void AChar_Wraith::AttackFire(FVector TraceEnd)
 {
-	Server_ChangeShootingMode(ShootingMode::Rifle);
-
 	// 총알 방향 계산
 	TOptional<FHitResult> HitResult = CheckTargettingInCenter();
 
@@ -433,11 +425,11 @@ void AChar_Wraith::CaculatedBulletDirection(FVector Point, bool isStriking, bool
 			Proj->BulletSpeed = BulletSpeed;
 			if (isStriking)
 			{
-				Proj->TraceLength = FVector::Dist(GetActorLocation(), Point);
+				//Proj->TraceLength = FVector::Dist(GetActorLocation(), Point);
 			}
 			else
 			{
-				Proj->TraceLength = NormalAttackDistance;
+				//Proj->TraceLength = NormalAttackDistance;
 			}
 			Proj->FinishSpawning(FTransform(FireRotation, MuzzleLocation));
 		}
@@ -674,56 +666,8 @@ void AChar_Wraith::QSkill_Shot()
 	}
 }
 
-void AChar_Wraith::OnRep_ChangeMode()
-{	
-	switch (shootingMode)
-	{
-	case(ShootingMode::NonCombat):
-		UpdateMovementSpeedData(1.f);
-		break;
-	case(ShootingMode::Rifle):
-		UpdateMovementSpeedData(1.f);
-		break;
-	case(ShootingMode::Sniping):
-		UpdateMovementSpeedData(0.3f);
-		break;
-	}
-}
-
-void AChar_Wraith::ServerChangeCombatMode(bool isCombat)
-{
-	if (bIsQSkillUsing || bIsESkillUsing) return;
-
-	if (isCombat)
-	{
-		Server_ChangeShootingMode(ShootingMode::Rifle);
-	}
-	else
-	{
-		if (!bIsQSkillUsing && !bIsESkillUsing)
-		{
-			Server_ChangeShootingMode(ShootingMode::NonCombat);
-		}
-	}
-}
-
-void AChar_Wraith::Server_ChangeShootingMode_Implementation(ShootingMode Mode)
-{
-	shootingMode = Mode;
-	
-	OnRep_ChangeMode();
-}
-
 void AChar_Wraith::ZoomInScope()
 {
-	bIsQSkillUsing = true;
-	CurrentUsingSkill = ESkillSlot::Q;
-	SetZoomInBool(bIsQSkillUsing);
-	Server_ChangeShootingMode(ShootingMode::Sniping);
-	SetCombatRotationMode(bIsQSkillUsing);
-
-	TargettingTraceLength = QSkillDistance;
-	GetWorld()->GetTimerManager().SetTimer(ZoomTimer, this, &ThisClass::UpdateZoom, 0.01f, true);
 }
 
 void AChar_Wraith::ZoomOutScope()
@@ -731,15 +675,7 @@ void AChar_Wraith::ZoomOutScope()
 	bIsQSkillUsing = false;
 	CurrentUsingSkill = ESkillSlot::None;
 	SetZoomInBool(bIsQSkillUsing);
-	if (IsCombat)
-	{
-		Server_ChangeShootingMode(ShootingMode::Rifle);
-	}
-	else
-	{
-		Server_ChangeShootingMode(ShootingMode::NonCombat);
-	}
-	SetCombatRotationMode(bIsQSkillUsing);
+	
 
 	TargettingTraceLength = NormalAttackDistance;
 	GetWorld()->GetTimerManager().SetTimer(ZoomTimer, this, &ThisClass::UpdateZoom, 0.01f, true);
@@ -749,7 +685,6 @@ void AChar_Wraith::SetZoomInBool_Implementation(bool bZoomIn)
 {
 	bIsQSkillUsing = bZoomIn;
 
-	SetCombatRotationMode(bIsQSkillUsing);
 }
 
 void AChar_Wraith::UpdateZoom()
@@ -775,7 +710,6 @@ void AChar_Wraith::SkillQAttack()
 
 	ClientQSkill();
 	ZoomOutScope();
-	Server_ChangeShootingMode(ShootingMode::Rifle);
 }
 
 void AChar_Wraith::ClientQSkill()
@@ -844,7 +778,6 @@ void AChar_Wraith::ClientQSkill()
 
 void AChar_Wraith::OnRep_QSkillUsing()
 {
-	SetCombatRotationMode(bIsQSkillUsing);
 }
 
 void AChar_Wraith::S_SkillQAttack_Implementation(FVector TraceStart, FVector TraceEnd, FVector MuzzleLocation)
@@ -1028,8 +961,6 @@ void AChar_Wraith::ESKill_Bomb()
 void AChar_Wraith::SetLoadToBombBool_Implementation(bool bLoad)
 {
 	bIsESkillUsing = bLoad;
-
-	SetCombatRotationMode(bIsESkillUsing);
 }
 
 void AChar_Wraith::LoadToBomb()
@@ -1038,8 +969,6 @@ void AChar_Wraith::LoadToBomb()
 	SetLoadToBombBool(true);
 	CurrentUsingSkill = ESkillSlot::E;
 	TargettingTraceLength = ESkillTraceDistance;
-	Server_ChangeShootingMode(ShootingMode::Bomb);
-	SetCombatRotationMode(bIsESkillUsing);
 }
 
 void AChar_Wraith::PutInTheBomb()
@@ -1049,15 +978,6 @@ void AChar_Wraith::PutInTheBomb()
 	ClearTrajectoryPath();
 	TargettingTraceLength = NormalAttackDistance;
 	CurrentUsingSkill = ESkillSlot::None;
-	if (IsCombat)
-	{
-		Server_ChangeShootingMode(ShootingMode::Rifle);
-	}
-	else
-	{
-		Server_ChangeShootingMode(ShootingMode::NonCombat);
-	}
-	SetCombatRotationMode(bIsESkillUsing);
 }
 
 void AChar_Wraith::UpdateTrajectory()
@@ -1209,7 +1129,6 @@ void AChar_Wraith::SkillEAttack()
 
 	ClientESkill();
 	PutInTheBomb();
-	Server_ChangeShootingMode(ShootingMode::Rifle);
 }
 
 void AChar_Wraith::ClientESkill()
@@ -1390,7 +1309,6 @@ void AChar_Wraith::PlayThrowBombAnim()
 
 void AChar_Wraith::OnRep_ESkillUsing()
 {
-	SetCombatRotationMode(bIsESkillUsing);
 }
 
 void AChar_Wraith::Multicast_ESkillAttack_Implementation(int64 UniqueID, FVector TraceStart, FVector TraceEnd)
@@ -1431,5 +1349,4 @@ void AChar_Wraith::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ThisClass, TargettingTraceLength);
-	DOREPLIFETIME(ThisClass, shootingMode);
 }

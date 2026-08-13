@@ -1,6 +1,8 @@
 #include "GAS/WGameplayAbility.h"
 
+#include "AbilitySystemComponent.h"
 #include "Character/WCharacterBase.h"
+#include "Character/WCharAnimInstance.h"
 #include "PersistentGame/GamePlayerController.h"
 
 class UAnimInstance* UWGameplayAbility::GetOwnerAnimInstance() const
@@ -21,15 +23,22 @@ void UWGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 	{
-		AActor* Avatar = GetAvatarActorFromActorInfo();
-		if (Avatar)
-		{
-			AWCharacterBase* PlayerAvatar = Cast<AWCharacterBase>(Avatar);
-			if (PlayerAvatar)
-			{
-				FRotator CameraRot = PlayerAvatar->GetController()->GetControlRotation();
-				PlayerAvatar->SetActorRotation(FRotator(0, CameraRot.Yaw, 0));
-			}
-		}
+		AWCharacterBase* Character = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
+		if (!Character) return;
+		
+		//Character->
+	}
+
+	if (K2_HasAuthority())
+	{
+		UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+		
+		FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
+		if (!ContextHandle.IsValid()) return;
+		
+		FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(CombatEffectClass, 1.f, ContextHandle);
+		if (!SpecHandle.IsValid()) return;
+
+		ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 	}
 }
