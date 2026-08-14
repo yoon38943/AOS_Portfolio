@@ -257,7 +257,7 @@ void UWCharAnimInstance::ProcessTurnYawCurve()
 	float LastUpdateTurnYawCurveValue = TurnYawCurveValue;
 
 	float TurnRemaining = 0.f;
-	bool bHasCurve = GetCurveValue(TEXT("RemainingTurnYaw"), TurnRemaining);
+	bool bHasCurve = GetCurveValue(TEXT("TurnYawWeight"), TurnRemaining);
 	if (!bHasCurve)
 	{
 		TurnYawCurveValue = 0.f;

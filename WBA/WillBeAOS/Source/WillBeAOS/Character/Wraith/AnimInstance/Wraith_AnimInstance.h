@@ -18,9 +18,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|ShootingMode")
 	FGameplayTag CurrentShootingModeTag;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Animation|ShootingMode")
-	void OnShootingModeChanged(FGameplayTag NewModeTag);
-
 	virtual FGameplayTag GetCurrentShootingModeTag() const override { return CurrentShootingModeTag; }
 
 

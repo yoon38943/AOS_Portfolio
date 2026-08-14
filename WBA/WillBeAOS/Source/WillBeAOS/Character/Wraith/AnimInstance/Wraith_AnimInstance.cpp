@@ -81,6 +81,5 @@ void UWraith_AnimInstance::OnShootingModeTagCountChanged(const FGameplayTag Tag,
 	if (CurrentShootingModeTag != FinalModeTag)
 	{
 		CurrentShootingModeTag = FinalModeTag;
-		OnShootingModeChanged(CurrentShootingModeTag);
 	}
 }
