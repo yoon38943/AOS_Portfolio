@@ -80,6 +80,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "TurnInPlace")
 	bool bIsTurning = false;
 
+	bool bSetForward = false;
+
 	float TurnDelayThreshold = 0.2f;
 	float CurrentTurnDelayTime = 0.f;
 
@@ -100,6 +102,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintThreadSafe))
 	void ProcessTurnYawCurve();
+
+	bool bShouldResetRootYawOffset = false;
+	float ResetTimer = 0.f;
+	void ResetRootYawOffset(float DeltaTime);
 	
 
 protected:

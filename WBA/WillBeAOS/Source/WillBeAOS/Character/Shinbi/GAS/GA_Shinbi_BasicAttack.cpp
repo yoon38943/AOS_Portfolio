@@ -7,10 +7,11 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "GameplayTagsManager.h"
+#include "Interface/Interface_CharacterAction.h"
 
 void UGA_Shinbi_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
+                                             const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+                                             const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
@@ -20,9 +21,16 @@ void UGA_Shinbi_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		return;
 	}
 
+	AvatarActor = GetAvatarActorFromActorInfo();
+
 	HitActors.Empty();
 
 	bComboInputEnabled = false;
+
+	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(AvatarActor))
+	{
+		CharInterface->RequestSnapToCameraDirection();
+	}
 
 	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 	{
@@ -90,6 +98,11 @@ void UGA_Shinbi_BasicAttack::TryCommitCombo()
 	HitActors.Empty();
 	OwnerAnimInstance->Montage_JumpToSection(NextComboName, ComboMontage);
 	bComboInputEnabled = false;
+	
+	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(AvatarActor))
+	{
+		CharInterface->RequestSnapToCameraDirection();
+	}
 }
 
 void UGA_Shinbi_BasicAttack::ComboChangedEventReceived(FGameplayEventData Data)

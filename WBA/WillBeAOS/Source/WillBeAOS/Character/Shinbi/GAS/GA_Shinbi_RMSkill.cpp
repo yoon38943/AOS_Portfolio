@@ -53,6 +53,11 @@ void UGA_Shinbi_RMSkill::PerformDash()
 
 void UGA_Shinbi_RMSkill::StartDash()
 {
+	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(GetAvatarActorFromActorInfo()))
+	{
+		CharInterface->RequestSnapToCameraDirection();
+	}
+	
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC)
 	{

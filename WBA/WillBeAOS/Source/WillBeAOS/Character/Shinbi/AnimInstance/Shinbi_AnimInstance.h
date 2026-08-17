@@ -8,6 +8,6 @@ UCLASS()
 class WILLBEAOS_API UShinbi_AnimInstance : public UWCharAnimInstance
 {
 	GENERATED_BODY()
-	
-	
+
+
 };

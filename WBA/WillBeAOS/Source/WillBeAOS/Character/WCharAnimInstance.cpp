@@ -19,7 +19,7 @@ void UWCharAnimInstance::RegisterTagEvent()
 
 void UWCharAnimInstance::OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
-	bIsCombat = (NewCount > 0);
+	bIsCombat = NewCount > 0;
 }
 
 void UWCharAnimInstance::UpdateVelocityData()
@@ -82,7 +82,7 @@ void UWCharAnimInstance::SetRootYawOffset(float InRootYawOffest)
 
 void UWCharAnimInstance::TurnInPlace(float DeltaTime)
 {
-	if (FMath::Abs(RootYawOffset) > 50.f && !WIsAccelerating)
+	if ((FMath::Abs(RootYawOffset) > 50.f && !WIsAccelerating) && !bSetForward)
 	{
 		CurrentTurnDelayTime += DeltaTime;
 		if (CurrentTurnDelayTime > TurnDelayThreshold)
@@ -158,6 +158,11 @@ void UWCharAnimInstance::NativeInitializeAnimation()
 void UWCharAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	PropertyAccess();
+
+	if (bShouldResetRootYawOffset)
+	{
+		ResetRootYawOffset(DeltaSeconds);
+	}
 
 	if (!OwnerASC)
 	{
@@ -285,6 +290,21 @@ void UWCharAnimInstance::ProcessTurnYawCurve()
 			float DeltaTurnYawCurveValue = TurnYawCurveValue - LastUpdateTurnYawCurveValue;
 			SetRootYawOffset(RootYawOffset - DeltaTurnYawCurveValue);
 		}
+	}
+}
+
+void UWCharAnimInstance::ResetRootYawOffset(float DeltaTime)
+{
+	float LerpYaw = FMath::FInterpTo(RootYawOffset, 0.f, DeltaTime, 20.f);
+	SetRootYawOffset(LerpYaw);
+
+	ResetTimer += DeltaTime;
+
+	if (ResetTimer >= 0.3f)
+	{
+		ResetTimer = 0.f;
+		SetRootYawOffset(0.f);
+		bShouldResetRootYawOffset = false;
 	}
 }
 

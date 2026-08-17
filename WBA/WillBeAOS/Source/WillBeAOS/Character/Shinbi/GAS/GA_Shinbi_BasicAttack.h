@@ -22,6 +22,9 @@ private:
 	void HandleInputPress(float TimeWaited);
 
 	void TryCommitCombo();
+
+	UPROPERTY()
+	AActor* AvatarActor;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* ComboMontage;

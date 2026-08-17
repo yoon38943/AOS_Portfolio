@@ -25,8 +25,6 @@ void UWGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	{
 		AWCharacterBase* Character = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
 		if (!Character) return;
-		
-		//Character->
 	}
 
 	if (K2_HasAuthority())

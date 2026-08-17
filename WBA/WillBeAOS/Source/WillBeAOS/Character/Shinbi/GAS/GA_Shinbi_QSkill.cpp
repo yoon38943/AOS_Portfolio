@@ -84,7 +84,12 @@ void UGA_Shinbi_QSkill::SpawnDashWolf(FGameplayEventData Data)
 }
 
 void UGA_Shinbi_QSkill::OnInputReleased(float TimeHeld)
-{	
+{
+	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(GetAvatarActorFromActorInfo()))
+	{
+		CharInterface->RequestSnapToCameraDirection();
+	}
+	
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC) ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
 	

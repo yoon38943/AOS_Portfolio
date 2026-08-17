@@ -9,6 +9,7 @@
 #include "Struct_Enum/WalkSpeedStruct.h"
 #include "AbilitySystemInterface.h"
 #include "GAS/UWGameplayAbilityTypes.h"
+#include "Interface/Interface_CharacterAction.h"
 #include "WCharacterBase.generated.h"
 
 #define PLAYERKILLGOLD 100
@@ -27,7 +28,8 @@ class UAnimMontage;
 class UWidgetComponent;
 
 UCLASS()
-class WILLBEAOS_API AWCharacterBase : public AAOSCharacter, public ISkillInterface, public IVisibleSightInterface, public IAbilitySystemInterface
+class WILLBEAOS_API AWCharacterBase : public AAOSCharacter, public ISkillInterface, public IVisibleSightInterface,
+public IAbilitySystemInterface, public IInterface_CharacterAction
 {
 
 	GENERATED_BODY()
@@ -72,14 +74,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = Movement)
 	float InterpAOYaw;
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RootYawOffset)
-	float CachedRootYawOffset = 0.f;
-
-	UFUNCTION()
-	void OnRep_RootYawOffset(float ServerRootYawOffset);
-
-	UFUNCTION(Server, Reliable)
-	void Server_UpdateRootYawOffset(float InRootYawOffset);
+	virtual void RequestSnapToCameraDirection() override;
+	
 
 public:
 	

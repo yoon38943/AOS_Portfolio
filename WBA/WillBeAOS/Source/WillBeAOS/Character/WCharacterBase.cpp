@@ -267,14 +267,13 @@ void AWCharacterBase::Server_SetYaw_Implementation(float YawValue)
 	Yaw = YawValue;
 }
 
-void AWCharacterBase::OnRep_RootYawOffset(float ServerRootYawOffset)
+void AWCharacterBase::RequestSnapToCameraDirection()
 {
-	CachedRootYawOffset = ServerRootYawOffset;
-}
-
-void AWCharacterBase::Server_UpdateRootYawOffset_Implementation(float InRootYawOffset)
-{
-	CachedRootYawOffset = InRootYawOffset;
+	if (Anim && FMath::Abs(Anim->RootYawOffset) > 20.f)
+	{
+		Anim->bIsTurning = false;
+		Anim->bShouldResetRootYawOffset = true;
+	}
 }
 
 void AWCharacterBase::SetTeamCollision()
@@ -803,7 +802,6 @@ void AWCharacterBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>
 	DOREPLIFETIME(ThisClass, CharacterTeam);
 	DOREPLIFETIME(ThisClass, ControllerRotation);
 	DOREPLIFETIME(ThisClass, Yaw);
-	DOREPLIFETIME(ThisClass, CachedRootYawOffset);
 	DOREPLIFETIME(ThisClass, IsCombat);
 	DOREPLIFETIME(ThisClass, bIsQSkillUsing);
 	DOREPLIFETIME(ThisClass, bIsESkillUsing);
