@@ -1,5 +1,6 @@
 #include "Minions/MinionsSpawner.h"
 #include "WMinionsCharacterBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "PersistentGame/PlayGameMode.h"
 
 AMinionsSpawner::AMinionsSpawner()
@@ -40,13 +41,15 @@ void AMinionsSpawner::SpawnMinions_Implementation()
 	if (bGameIsEnd) return;
 	
 	SpawnCount++;
-	
-	AWMinionsCharacterBase* SpawnMinion = GetWorld()->SpawnActor<AWMinionsCharacterBase>(SpawnMinionsClass, GetActorLocation(), GetActorRotation());
+
+	FTransform SpawnPointTransform = FTransform(GetActorRotation(), GetActorLocation());
+	AWMinionsCharacterBase* SpawnMinion = GetWorld()->SpawnActorDeferred<AWMinionsCharacterBase>(SpawnMinionsClass, SpawnPointTransform, this);
 	if (SpawnMinion)
 	{
 		SpawnMinion->SetTeamID(TeamID);
 		SpawnMinion->TrackNum = TrackNum;
 		SpawnMinion->SetTrackPoint();
+		UGameplayStatics::FinishSpawningActor(SpawnMinion, GetActorTransform());
 		SpawnMinion->SpawnDefaultController();
 	}
 

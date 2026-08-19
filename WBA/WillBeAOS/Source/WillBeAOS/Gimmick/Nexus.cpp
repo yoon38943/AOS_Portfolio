@@ -33,6 +33,18 @@ ANexus::ANexus()
 	NexusMeshComponent->SetReceivesDecals(false);
 }
 
+void ANexus::SetTeamCollision()
+{
+	if (GetTeamID() == E_TeamID::Blue)
+	{
+		NexusMeshComponent->SetCollisionObjectType(TeamCollision::BlueTeam);
+	}
+	if (GetTeamID() == E_TeamID::Red)
+	{
+		NexusMeshComponent->SetCollisionObjectType(TeamCollision::RedTeam);
+	}
+}
+
 void ANexus::DestroyNexus()
 {
 	NM_DestroyNexus();
@@ -84,6 +96,8 @@ void ANexus::BeginPlay()
 			GS->GameManagedActors.AddUnique(this);
 		}
 	}
+
+	SetTeamCollision();
 }
 
 void ANexus::EndPlay(const EEndPlayReason::Type EndPlayReason)

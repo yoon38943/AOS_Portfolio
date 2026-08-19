@@ -210,57 +210,18 @@ TOptional<FHitResult> AChar_Wraith::CheckTargettingInCenter()
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);
 
-	if (GS)
+	ECollisionChannel EnemyChannel;
+	if (GetTeamID() == E_TeamID::Blue)
 	{
-		for (TWeakObjectPtr<AActor> WeakActor : GS->CachedActors)
-		{
-			if (WeakActor.IsValid())
-			{
-				AActor* Ally = WeakActor.Get();
-				
-				if (!IsValid(Ally)) continue;
-			
-				// AAOSCharacter 중 아군 채널 제외
-				AAOSCharacter* InGameChar = Cast<AAOSCharacter>(Ally);
-				if (InGameChar)
-				{
-					if (InGameChar->TeamID == TeamID)
-						QueryParams.AddIgnoredActor(Ally);
-				}
-
-				// AAOSActor 중 아군 채널 제외
-				if (bIsQSkillUsing)
-				{
-					ATower* Tower = Cast<ATower>(Ally);
-					if (Tower)
-					{
-						if (IsValid(Tower) && Tower->TeamID == TeamID)
-							QueryParams.AddIgnoredActor(Tower);
-					}
-					ANexus* Nexus = Cast<ANexus>(Ally);
-					if (Nexus)
-					{
-						if (IsValid(Nexus) && Nexus->TeamID == TeamID)
-							QueryParams.AddIgnoredActor(Ally);
-					}
-				}
-				else   // 줌아웃 시 타워 타겟팅 O
-				{
-					AAOSActor* InGameActor = Cast<AAOSActor>(Ally);
-					if (InGameActor)
-					{
-						if (IsValid(InGameActor) && InGameActor->TeamID == TeamID)
-							QueryParams.AddIgnoredActor(Ally);
-					}
-				}
-			}
-		}
+		EnemyChannel = TeamCollision::RedTeam;
+	}
+	else
+	{
+		EnemyChannel = TeamCollision::BlueTeam;
 	}
 
 	FCollisionObjectQueryParams ObjectQuery;
-	ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
-	ObjectQuery.AddObjectTypesToQuery(ECC_GameTraceChannel1);
-	//ObjectQuery.AddObjectTypesToQuery(ECC_Pawn);
+	ObjectQuery.AddObjectTypesToQuery(EnemyChannel);
 
 	bool AttackSuccess = GetWorld()->LineTraceSingleByObjectType(
 		HitActor,

@@ -92,7 +92,7 @@ void UGA_Shinbi_ESkill::SpawnCircleWolves(FGameplayEventData Data)
 			ACircleDamageField* Field = GetWorld()->SpawnActor<ACircleDamageField>(
 			DamageFieldClass,
 			Avatar->GetActorLocation(),
-			FRotator::ZeroRotator
+			Avatar->GetActorRotation()
 		);
 
 			if (Field)

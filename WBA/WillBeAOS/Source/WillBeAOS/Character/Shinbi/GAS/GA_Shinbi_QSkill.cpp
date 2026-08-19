@@ -51,19 +51,16 @@ void UGA_Shinbi_QSkill::SpawnDashWolf(FGameplayEventData Data)
 {
 	if (K2_HasAuthority())
 	{
-		AActor* AvatarActor = GetAvatarActorFromActorInfo();
-		if (!AvatarActor) return;
-	
-		FVector OwnerCharacterLocation = AvatarActor->GetActorLocation();
-		FRotator OwnerCharacterRotation = AvatarActor->GetActorRotation();
-		FVector ForwardVector = AvatarActor->GetActorForwardVector();
+		FVector OwnerCharacterLocation = Player->GetActorLocation();
+		FRotator OwnerCharacterRotation = Player->GetActorRotation();
+		FVector ForwardVector = Player->GetActorForwardVector();
 
 		float SpawDistance = 100.f;
 		FVector SpawnLocation = OwnerCharacterLocation + (ForwardVector * SpawDistance);
 
 		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = AvatarActor;
-		SpawnParams.Instigator = Cast<APawn>(AvatarActor);
+		SpawnParams.Owner = Player;
+		SpawnParams.Instigator = Cast<APawn>(Player);
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 		AWolf* Wolf = GetWorld()->SpawnActor<AWolf>(
@@ -75,7 +72,7 @@ void UGA_Shinbi_QSkill::SpawnDashWolf(FGameplayEventData Data)
 
 		if (Wolf)
 		{
-			Wolf->LaunchWolf(AvatarActor);
+			Wolf->LaunchWolf(Player);
 		}
 	}
 

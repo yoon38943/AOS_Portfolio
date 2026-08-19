@@ -1,6 +1,7 @@
 #include "Character/Shinbi/Wolf/CircleDamageField.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "Components/SphereComponent.h"
 #include "Gimmick/Nexus.h"
@@ -24,8 +25,22 @@ void ACircleDamageField::InitField(AActor* InOwner, const float InRadius, const 
 	FieldRadius = InRadius;
 	LifeTime = InLifeTime;
 
+	Player = Cast<AAOSCharacter>(InOwner);
 	DamageCollision->SetSphereRadius(FieldRadius);
 	SetLifeSpan(InLifeTime);
+
+	if (Player->GetTeamID() == E_TeamID::Blue)
+	{
+		DamageCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
+		DamageCollision->SetCollisionResponseToChannel(TeamCollision::BlueTeam, ECR_Ignore);
+		DamageCollision->SetCollisionResponseToChannel(TeamCollision::RedTeam, ECR_Overlap);
+	}
+	else
+	{
+		DamageCollision->SetCollisionObjectType(TeamCollision::RedTeam);
+		DamageCollision->SetCollisionResponseToChannel(TeamCollision::RedTeam, ECR_Ignore);
+		DamageCollision->SetCollisionResponseToChannel(TeamCollision::BlueTeam, ECR_Overlap);
+	}
 	
 	TArray<AActor*> OverlappingActors;
 	DamageCollision->GetOverlappingActors(OverlappingActors);
@@ -77,11 +92,8 @@ void ACircleDamageField::StartDamageToActor(AActor* HitActor)
 	const IGetInfoInterface* SourceTeam = Cast<IGetInfoInterface>(FieldOwner);
 
 	if (!TargetTeam || !SourceTeam) return;
-	//if (TargetTeam->GetTeamID() == SourceTeam->GetTeamID()) return;
 
 	if (DamageTimers.Contains(HitActor)) return;
-	
-	UE_LOG(LogTemp, Warning, TEXT("ACircleDamageField Overlap : %s"), *HitActor->GetName());
 
 	DamageToEnemy(HitActor);
 

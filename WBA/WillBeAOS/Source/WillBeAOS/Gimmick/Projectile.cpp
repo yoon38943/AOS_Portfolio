@@ -8,6 +8,14 @@
 #include "Particles/ParticleSystemComponent.h"
 
 
+void AProjectile::OnRep_Target()
+{
+	if (Target && Target->GetRootComponent())
+	{
+		ProjectileMovement->HomingTargetComponent = Target->GetRootComponent();
+	}
+}
+
 AProjectile::AProjectile()
 {
 	bReplicates = true;
@@ -27,8 +35,9 @@ AProjectile::AProjectile()
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 	ProjectileMovement->UpdatedComponent = CollisionComponent;		// 발사체 지정(없으면 무엇을 발사할지 인식 못함)
 	ProjectileMovement->InitialSpeed = 1200.f;
+	ProjectileMovement->MaxSpeed = 1200.f;
 	ProjectileMovement->bIsHomingProjectile = true;		// 발사체 유도 기능
-	ProjectileMovement->HomingAccelerationMagnitude = 1200.f;	// 발사체 유도 민감도
+	ProjectileMovement->HomingAccelerationMagnitude = 20000.f;	// 발사체 유도 민감도
 
 	InitialLifeSpan = 5.f;	// 발사체 존재 가능 시간
 }
@@ -37,12 +46,15 @@ void AProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (HasAuthority() && Target)
+	if (HasAuthority())
 	{
-		FVector Direction = (Target->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-		ProjectileMovement->Velocity = Direction * ProjectileMovement->InitialSpeed;
-		ProjectileMovement->Activate();
 		SetHomingTarget();
+		if (Target)
+		{
+			FVector Direction = (Target->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+			ProjectileMovement->Velocity = Direction * ProjectileMovement->InitialSpeed;
+			ProjectileMovement->Activate();
+		}
 	}
 }
 
@@ -50,49 +62,12 @@ void AProjectile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 투사체 위치 보간
-	if (!HasAuthority() || !Target) return;
-
-	FVector CurrentLocation = GetActorLocation();
-	FVector TargetLocation = Target->GetActorLocation();
-
-	// 현재 속도 방향
-	FVector CurrentVelocity = ProjectileMovement->Velocity;
-	FVector DesiredDirection = (TargetLocation - CurrentLocation).GetSafeNormal();
-
-	// 방향 보간
-	FVector NewDirection = FMath::VInterpNormalRotationTo(
-		CurrentVelocity.GetSafeNormal(),
-		DesiredDirection,
-		DeltaTime,
-		TurnSpeed
-	);
-
-	// 새로운 속도 적용
-	FVector NewVelocity = NewDirection * ProjectileMovement->InitialSpeed;
-	ProjectileMovement->Velocity = NewVelocity;
-
-	if (!ProjectileMovement->Velocity.IsNearlyZero())
-	{
-		ReplicatedRotation = ProjectileMovement->Velocity.GetSafeNormal().Rotation();
-		ReplicatedVelocity = ProjectileMovement->Velocity;
-		SetActorRotation(ReplicatedRotation);
-	}
-
-	NM_UpdateReplicate(ReplicatedVelocity, ReplicatedRotation);
-
 	// 날아가는 와중 타겟이 죽거나 사라졌을 경우
 	if (HasAuthority() && (!IsValid(Target) || Target->bIsDead == true))
 	{
 		Target = nullptr;
 		Destroy();
 	}
-}
-
-void AProjectile::NM_UpdateReplicate_Implementation(FVector Velocity, FRotator Rotation)
-{
-	ProjectileMovement->Velocity = Velocity;
-	SetActorRotation(Rotation);
 }
 
 void AProjectile::OnComponentBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -130,14 +105,16 @@ void AProjectile::SetHomingTarget()
 		UE_LOG(LogTemp, Warning, TEXT("Projectile has no target!"));
 		return;
 	}
-	
-	HomingTargetComponent = Target->GetRootComponent();
 
-	if (!HomingTargetComponent)
+	if (Target->GetRootComponent())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Homing target invalid!"));
-		return;
+		ProjectileMovement->HomingTargetComponent = Target->GetRootComponent();
 	}
-	
-	ProjectileMovement->HomingTargetComponent = HomingTargetComponent;
+}
+
+void AProjectile::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ThisClass, Target);
 }

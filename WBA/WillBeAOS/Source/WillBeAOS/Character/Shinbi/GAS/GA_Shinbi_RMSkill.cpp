@@ -17,7 +17,7 @@ void UGA_Shinbi_RMSkill::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	PlayerChar = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
-
+	
 	CurrentDashStacks = MaxDashStacks;
 
 	PerformDash();
@@ -83,7 +83,12 @@ void UGA_Shinbi_RMSkill::StartDash()
 	ACharacter* Avatar = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 
 	UCapsuleComponent* Collision = Avatar->GetCapsuleComponent();
-	if (Collision) Collision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
+	if (Collision)
+	{
+		Collision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
+		Collision->SetCollisionResponseToChannel(TeamCollision::BlueTeam, ECR_Ignore);
+		Collision->SetCollisionResponseToChannel(TeamCollision::RedTeam, ECR_Ignore);
+	}
 	
 	FRotator ControlRot = Avatar->GetControlRotation();
 	FVector Direction = FRotator(0, ControlRot.Yaw, 0).Vector();
@@ -121,7 +126,12 @@ void UGA_Shinbi_RMSkill::OnDashLanded()
 	if (!Avatar) return;
 
 	UCapsuleComponent* Collision = Avatar->GetCapsuleComponent();
-	if (Collision) Collision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Block);
+	if (Collision)
+	{
+		Collision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Block);
+		Collision->SetCollisionResponseToChannel(TeamCollision::BlueTeam, ECR_Block);
+		Collision->SetCollisionResponseToChannel(TeamCollision::RedTeam, ECR_Block);
+	}
 
 	if (!DashMontageEnded)
 	{

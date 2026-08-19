@@ -12,7 +12,11 @@ class WILLBEAOS_API AProjectile : public AActor
 {
 	GENERATED_BODY()
 
+	UPROPERTY(ReplicatedUsing = OnRep_Target)
 	AAOSCharacter* Target;
+
+	UFUNCTION()
+	void OnRep_Target();
 
 	UPROPERTY(EditAnywhere, Category = "Homing")
 	float TurnSpeed = 1000.f;		// 조절 가능 회전 속도
@@ -25,16 +29,6 @@ class WILLBEAOS_API AProjectile : public AActor
 
 	UPROPERTY(VisibleAnywhere, Category = "Movement")
 	class UProjectileMovementComponent* ProjectileMovement;
-
-	UPROPERTY()
-	class USceneComponent* HomingTargetComponent;
-
-	UFUNCTION(NetMulticast, reliable)
-	void NM_UpdateReplicate(FVector Velocity, FRotator Rotation);
-
-	FRotator ReplicatedRotation;
-
-	FVector ReplicatedVelocity;
 	
 public:	
 	AProjectile();
@@ -47,12 +41,14 @@ public:
 	
 	UFUNCTION()
 	void OnComponentBeginOverlap(UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult
-);
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult
+	);
 
 	void SetHomingTarget();
+
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 };

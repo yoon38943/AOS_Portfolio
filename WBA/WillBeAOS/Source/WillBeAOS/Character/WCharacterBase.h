@@ -14,6 +14,7 @@
 
 #define PLAYERKILLGOLD 100
 
+class AWPlayerState;
 struct FGameplayTag;
 class UGameplayAbility;
 class UWCharAnimInstance;
@@ -53,36 +54,20 @@ protected:
 	UPROPERTY(VisibleAnywhere, BluePrintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"));
 	class UCombatComponent* CombatComp;
 
-	void AimOffset(float DeltaTime);
-
 public:
 	UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	
-public:	
-	FRotator StartAimRotation;
-	UPROPERTY(Replicated)
-	FRotator ControllerRotation;
-	UFUNCTION(Server, Reliable)
-	void Server_SetControlRotation(FRotator Rotation);
-	UPROPERTY(BlueprintReadOnly, Category = Movement)
-	float Pitch;
-	UPROPERTY(BlueprintReadOnly, Category = Movement, Replicated)
-	float Yaw;
-	UFUNCTION(Server, Reliable)
-	void Server_SetYaw(float YawValue);
-	UPROPERTY(BlueprintReadOnly, Category = Movement)
-	float InterpAOYaw;
-
+public:
+	UPROPERTY()
+	AGamePlayerState* GamePlayerState;
+	
+	void SetTeamCollision();
+	
 	virtual void RequestSnapToCameraDirection() override;
 	
 
 public:
-	
-	UPROPERTY(Replicated)
-	E_TeamID CharacterTeam;
-
-	void SetTeamCollision();
 	
 	// HP Widget 관련
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

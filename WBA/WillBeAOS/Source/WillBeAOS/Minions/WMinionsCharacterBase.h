@@ -35,6 +35,8 @@ public:
 
 public:
 	AWMinionsCharacterBase();
+
+	void SetTeamCollision();
 	
 	/*********************************************************/
 	// GAS 시스템

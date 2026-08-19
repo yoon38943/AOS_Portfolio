@@ -145,25 +145,26 @@ void APlayGameMode::SpawnTower()
 		if (HasAuthority() && SpawnPoint && SpawnPoint->TowerClass)
 		{
 			// 타워 생성
-			FActorSpawnParameters SpawnParams;
-			AActor* Tower = GetWorld()->SpawnActor<AActor>(
+			FTransform SpawnTransform = FTransform(SpawnPoint->GetActorRotation(), SpawnPoint->GetActorLocation());
+			AAOSActor* Tower = GetWorld()->SpawnActorDeferred<AAOSActor>(
 				SpawnPoint->TowerClass,
-				SpawnPoint->GetActorLocation(),
-				SpawnPoint->GetActorRotation(),
-				SpawnParams
+				SpawnTransform,
+				SpawnPoint
 			);
 			
-			if (AAOSActor* SpawnedActor = Cast<AAOSActor>(Tower))
+			if (Tower)
 			{
-				SpawnedActor->SetReplicates(true);
-				SpawnedActor->SetTeamID(SpawnPoint->TeamID);
-				InGS->AssignNexus(SpawnedActor);
-				AssignTeam(SpawnedActor,static_cast<int32>(SpawnedActor->TeamID));
-				ATower* TowerColor = Cast<ATower>(SpawnedActor);
+				Tower->SetReplicates(true);
+				Tower->SetTeamID(SpawnPoint->TeamID);
+				InGS->AssignNexus(Tower);
+				AssignTeam(Tower,static_cast<int32>(Tower->TeamID));
+				ATower* TowerColor = Cast<ATower>(Tower);
 				if (TowerColor)
 				{
 					TowerColor->S_SetHPbarColor();
 				}
+
+				UGameplayStatics::FinishSpawningActor(Tower, SpawnPoint->GetActorTransform());
 			}
 		}
 	}
@@ -356,7 +357,7 @@ void APlayGameMode::RespawnPlayer(APawn* Player, AController* PlayerController)
 					{
 						UE_LOG(LogTemp, Log, TEXT("Player Spawner %s, %d"),*PC->GetName(),PS->InGamePlayerInfo.PlayerTeam);
 
-						RespawnChar->CharacterTeam = PS->InGamePlayerInfo.PlayerTeam;
+						RespawnChar->TeamID = PS->InGamePlayerInfo.PlayerTeam;
 						
 						PC->OnPossess(RespawnChar);
 						PC->OnGameStateChanged(E_GamePlay::ReadyCountdown);
@@ -377,7 +378,7 @@ void APlayGameMode::RespawnPlayer(APawn* Player, AController* PlayerController)
 			{
 				AWCharacterBase* RespawnChar = GetWorld()->SpawnActor<AWCharacterBase>(PS->InGamePlayerInfo.SelectedCharacter, PS->PlayerSpawner->GetActorLocation(), PS->PlayerSpawner->GetActorRotation());
 
-				RespawnChar->CharacterTeam = PS->InGamePlayerInfo.PlayerTeam;
+				RespawnChar->TeamID = PS->InGamePlayerInfo.PlayerTeam;
 
 				PC->GetPawn()->Destroy();
 				

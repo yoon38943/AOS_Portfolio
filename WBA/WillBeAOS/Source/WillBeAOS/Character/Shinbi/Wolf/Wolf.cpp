@@ -17,10 +17,10 @@ AWolf::AWolf()
 	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 }
 
-void AWolf::LaunchWolf(AActor* InInstigator)
+void AWolf::LaunchWolf(AWCharacterBase* InInstigator)
 {
 	WolfInstigator = InInstigator;
-    
+	
 	PrevLocation = GetActorLocation();
 }
 
@@ -62,8 +62,18 @@ void AWolf::Explosion(const FVector& ImpactLocation)
 	Params.AddIgnoredActor(this);
 	Params.AddIgnoredActor(WolfInstigator);
 
+	ECollisionChannel EnemyCollision;
+	if (WolfInstigator->GetTeamID() == E_TeamID::Blue)
+	{
+		EnemyCollision = TeamCollision::RedTeam;
+	}
+	else
+	{
+		EnemyCollision = TeamCollision::BlueTeam;
+	}
+
 	FCollisionObjectQueryParams ObjectParams;
-	ObjectParams.AddObjectTypesToQuery(ECC_GameTraceChannel1);
+	ObjectParams.AddObjectTypesToQuery(EnemyCollision);
 
 	GetWorld()->OverlapMultiByObjectType(
 		Overlaps,
@@ -127,8 +137,18 @@ void AWolf::CheckPathHit()
 	Params.AddIgnoredActor(this);
 	Params.AddIgnoredActor(WolfInstigator);
 
+	ECollisionChannel EnemyCollision;
+	if (WolfInstigator->GetTeamID() == E_TeamID::Blue)
+	{
+		EnemyCollision = TeamCollision::RedTeam;
+	}
+	else
+	{
+		EnemyCollision = TeamCollision::BlueTeam;
+	}
+
 	FCollisionObjectQueryParams ObjectParams;
-	ObjectParams.AddObjectTypesToQuery(ECC_GameTraceChannel1);
+	ObjectParams.AddObjectTypesToQuery(EnemyCollision);
 
 	GetWorld()->SweepMultiByObjectType(
 		HitResults,

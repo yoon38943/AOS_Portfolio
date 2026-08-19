@@ -39,6 +39,18 @@ AWMinionsCharacterBase::AWMinionsCharacterBase()
 	SightComp = CreateDefaultSubobject<UVisibleWidgetComponent>(TEXT("SightComponent"));
 }
 
+void AWMinionsCharacterBase::SetTeamCollision()
+{
+	if (TeamID == E_TeamID::Blue)
+	{
+		TeamTraceCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
+	}
+	if (TeamID == E_TeamID::Red)
+	{
+		TeamTraceCollision->SetCollisionObjectType(TeamCollision::RedTeam);
+	}
+}
+
 UAbilitySystemComponent* AWMinionsCharacterBase::GetAbilitySystemComponent() const
 {
 	return WAbilitySystemComponent;
@@ -71,6 +83,7 @@ void AWMinionsCharacterBase::BeginPlay()
 		GM->OnGameEnd.AddUObject(this, &ThisClass::HandleGameEnd);
 	}
 
+	SetTeamCollision();
 	FindPlayerPC();
 
 	if (HasAuthority())

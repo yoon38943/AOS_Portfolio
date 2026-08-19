@@ -25,8 +25,8 @@ public:
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadOnly)
 	E_TeamID TeamID;
 
-	virtual E_TeamID GetTeamID() const override{return TeamID;}
-	virtual void SetTeamID(E_TeamID NewTeam) override{TeamID = NewTeam;}
+	virtual E_TeamID GetTeamID() const override { return TeamID; }
+	virtual void SetTeamID(E_TeamID NewTeam) override { TeamID = NewTeam; }
 	
 	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Gold")
 	int32 GoldReward = 0;

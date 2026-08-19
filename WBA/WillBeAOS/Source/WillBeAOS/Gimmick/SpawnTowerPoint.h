@@ -25,6 +25,5 @@ public:
 
 	// 타워 타입 (예: 방어 타워, 공격 타워 등)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
-	TSubclassOf<AActor> TowerClass;
-	
+	TSubclassOf<AActor> TowerClass;	
 };

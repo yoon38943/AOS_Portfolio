@@ -5,6 +5,8 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "ANS_Shinbi_BasicAttackTrace.generated.h"
 
+class AWCharacterBase;
+
 UCLASS()
 class WILLBEAOS_API UANS_Shinbi_BasicAttackTrace : public UAnimNotifyState
 {
@@ -15,6 +17,9 @@ class WILLBEAOS_API UANS_Shinbi_BasicAttackTrace : public UAnimNotifyState
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
 	FVector PrevMidLocation;
+
+	UPROPERTY()
+	AWCharacterBase* Player;
 
 	UPROPERTY()
 	TArray<TWeakObjectPtr<AActor>> HitActors;

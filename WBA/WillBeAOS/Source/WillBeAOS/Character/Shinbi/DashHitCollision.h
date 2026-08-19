@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Character/WCharacterBase.h"
 #include "GameFramework/Actor.h"
 #include "DashHitCollision.generated.h"
 
@@ -15,6 +16,9 @@ public:
 	ADashHitCollision();
 
 	void InitCollision(AActor* InOwner, float InRadius, float InHalfHeight);
+
+	UPROPERTY()
+	AWCharacterBase* Player;
 
 protected:
 	virtual void BeginPlay() override;

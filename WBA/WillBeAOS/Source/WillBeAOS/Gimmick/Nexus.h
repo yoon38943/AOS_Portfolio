@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Nexus.generated.h"
 
+class UBoxComponent;
 class USphereComponent;
 class UWAbilitySystemComponent;
 class UWAttributeSet;
@@ -45,6 +46,8 @@ public:
 	ANexus();
 
 	UStaticMeshComponent* GetMesh() { return NexusMeshComponent; }
+
+	void SetTeamCollision();
 
 	void DestroyNexus();
 

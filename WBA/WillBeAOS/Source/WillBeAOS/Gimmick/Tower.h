@@ -80,6 +80,8 @@ public://스폰
 	void spawn();
 
 	UStaticMeshComponent* GetMesh() { return StaticMesh; }
+
+	void SetTeamCollision();
 	
 public:
 	UPROPERTY(EditDefaultsOnly)

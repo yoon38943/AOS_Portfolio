@@ -17,6 +17,8 @@ void ADashHitCollision::InitCollision(AActor* InOwner, float InRadius, float InH
 	HalfHeight = InHalfHeight;
 	PrevLocation = GetActorLocation();
 
+	Player = Cast<AWCharacterBase>(InOwner);
+
 	bCanCheck = true;
 }
 
@@ -49,8 +51,18 @@ void ADashHitCollision::CheckHitPath()
 	Params.AddIgnoredActor(this);
 	Params.AddIgnoredActor(SkillOwner);
 
+	ECollisionChannel EnemyCollision;
+	if (Player->GetTeamID() == E_TeamID::Blue)
+	{
+		EnemyCollision = TeamCollision::RedTeam;
+	}
+	else
+	{
+		EnemyCollision = TeamCollision::BlueTeam;
+	}
+
 	FCollisionObjectQueryParams ObjectParams;
-	ObjectParams.AddObjectTypesToQuery(ECC_GameTraceChannel1);
+	ObjectParams.AddObjectTypesToQuery(EnemyCollision);
 
 	GetWorld()->SweepMultiByObjectType(
 		HitResults,
@@ -71,7 +83,6 @@ void ADashHitCollision::CheckHitPath()
 		const IGetInfoInterface* SourceTeam = Cast<IGetInfoInterface>(SkillOwner);
 
 		if (!TargetTeam || !SourceTeam) continue;
-		//if (TargetTeam->GetTeamID() == SourceTeam->GetTeamID()) continue;
 
 		HitActors.Add(HitActor);
 		ApplyDamageToTarget(HitActor, HitResult);

@@ -39,9 +39,6 @@ ATower::ATower()
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMesh"));
 	StaticMesh->SetupAttachment(GetRootComponent());
 
-	/*CapsuleCollisionComponet = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleCollision"));
-	CapsuleCollisionComponet->SetupAttachment(GetRootComponent());*/
-
 	AttackStartPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AttackStartPoint"));
 	AttackStartPoint->SetupAttachment(GetRootComponent());
 
@@ -128,6 +125,8 @@ void ATower::BeginPlay()
 		//S_InitHPPercentage();
 		InitHPPercentage(CombatComp->Health, CombatComp->Max_Health);
 	}
+
+	SetTeamCollision();
 }
 
 void ATower::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -334,6 +333,18 @@ void ATower::spawn()
 {
 	FActorSpawnParameters SpawnParams;
 	GetWorld()->SpawnActor<AActor>(SpawnActors, AttackStartPoint->GetComponentTransform(), SpawnParams);
+}
+
+void ATower::SetTeamCollision()
+{
+	if (TeamID == E_TeamID::Blue)
+	{
+		HitCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
+	}
+	if (TeamID == E_TeamID::Red)
+	{
+		HitCollision->SetCollisionObjectType(TeamCollision::RedTeam);
+	}
 }
 
 void ATower::DamagedParticle_Implementation()

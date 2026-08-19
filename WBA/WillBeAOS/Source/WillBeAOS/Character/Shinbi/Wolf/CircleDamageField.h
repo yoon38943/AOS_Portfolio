@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "CircleDamageField.generated.h"
 
+class AAOSCharacter;
 class UGameplayEffect;
 class USphereComponent;
 
@@ -17,6 +18,9 @@ public:
 	ACircleDamageField();
 
 	void InitField(AActor* InOwner, const float InRadius, const float InLifeTime);
+
+	UPROPERTY()
+	AAOSCharacter* Player;
 
 protected:
 	virtual void BeginPlay() override;

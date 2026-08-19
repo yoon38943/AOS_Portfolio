@@ -14,7 +14,7 @@ class WILLBEAOS_API AWolf : public ACharacter
 public:
 	AWolf();
 
-	void LaunchWolf(AActor* InInstigator);
+	void LaunchWolf(AWCharacterBase* InInstigator);
 
 
 protected:
@@ -36,7 +36,7 @@ private:
 	float ExplosionDamage = 50.f;
 
 	UPROPERTY()
-	AActor* WolfInstigator; 
+	AWCharacterBase* WolfInstigator; 
 
 	TArray<TWeakObjectPtr<AActor>> HitActors;
 

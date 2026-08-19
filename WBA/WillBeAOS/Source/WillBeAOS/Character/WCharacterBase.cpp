@@ -18,7 +18,6 @@
 #include "Components/TextBlock.h"
 #include "Components/WidgetComponent.h"
 #include "Gimmick/Tower.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Minions/WMinionsCharacterBase.h"
 #include "Net/UnrealNetwork.h"
 #include "PersistentGame/GamePlayerController.h"
@@ -132,15 +131,7 @@ void AWCharacterBase::BeginPlay()
 		GM->OnGameEnd.AddUObject(this, &ThisClass::HandleGameEnd);
 	}
 
-	AGamePlayerController* PC = Cast<AGamePlayerController>(GetController());
-	if (PC)
-	{			
-		FVector StartLocation = GetActorLocation();  // 현재 위치
-	
-		FRotator LookAtRotation = FRotationMatrix::MakeFromX(FVector(0, 0, 100) - StartLocation).Rotator();
-    
-		PC->SetControlRotation(LookAtRotation);
-	}
+	GamePlayerState = Cast<AGamePlayerState>(GetPlayerState());
 	
 	if (!HasAuthority())
 	{		
@@ -179,8 +170,6 @@ void AWCharacterBase::Tick(float DeltaTime)
 	
 	UpdateAcceleration();
 
-	AimOffset(DeltaTime);
-
 	VisibleOutline();
 
 	if (IsLocallyControlled())
@@ -214,57 +203,17 @@ void AWCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	}
 }
 
-void AWCharacterBase::AimOffset(float DeltaTime)
+void AWCharacterBase::SetTeamCollision()
 {
-	FVector Velocity = GetVelocity();
-	Velocity.Z = 0.f;
-	float Speed = Velocity.Size();
-
-	if (Speed == 0.f)
+	//팀 정보는 GameMode에서 리스폰시킬 때 넣고 있음
+	if (GetTeamID() == E_TeamID::Blue)
 	{
-		if (IsLocallyControlled())
-		{
-			FRotator AimRot = GetBaseAimRotation();
-			FRotator ActorRot = GetActorRotation();
-
-			FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(AimRot, ActorRot);
-        
-			Yaw = DeltaRot.Yaw;
-			Server_SetYaw(Yaw);
-		}
+		TeamTraceCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
 	}
-	if (Speed > 0.f)
+	if (GetTeamID() == E_TeamID::Red)
 	{
-		StartAimRotation = FRotator(0.f, GetBaseAimRotation().Yaw, 0.f);
-		//bUseControllerRotationYaw = true;
-		Yaw = 0.f;
+		TeamTraceCollision->SetCollisionObjectType(TeamCollision::RedTeam);
 	}
-
-	if (IsLocallyControlled())
-	{
-		Pitch = GetBaseAimRotation().Pitch;
-	}
-	else
-	{
-		// 원격 플레이어는 서버가 복제해준 RemoteViewPitch를 각도로 변환해서 사용
-		// RemoteViewPitch는 0~255 사이의 바이트 값이므로 다시 각도로 바꿔야 합니다.
-		Pitch = RemoteViewPitch * 360.f / 255.f;
-
-		if (Pitch > 180.f)
-		{
-			Pitch -= 360.f;
-		}
-	}
-}
-
-void AWCharacterBase::Server_SetControlRotation_Implementation(FRotator Rotation)
-{
-	ControllerRotation = Rotation;
-}
-
-void AWCharacterBase::Server_SetYaw_Implementation(float YawValue)
-{
-	Yaw = YawValue;
 }
 
 void AWCharacterBase::RequestSnapToCameraDirection()
@@ -276,22 +225,9 @@ void AWCharacterBase::RequestSnapToCameraDirection()
 	}
 }
 
-void AWCharacterBase::SetTeamCollision()
-{
-	if (TeamID == E_TeamID::Blue)
-	{
-		TeamTraceCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
-	}
-	if (TeamID == E_TeamID::Red)
-	{
-		TeamTraceCollision->SetCollisionObjectType(TeamCollision::RedTeam);
-	}
-}
-
 void AWCharacterBase::SetHPInfoBarColor()
 {
-	AGamePlayerState* PS = Cast<AGamePlayerState>(GetPlayerState());
-	if (PS && PS->PlayerInfo.PlayerTeam != E_TeamID::Neutral)
+	if (GamePlayerState && GamePlayerState->PlayerInfo.PlayerTeam != E_TeamID::Neutral)
 	{
 		UPlayerHPInfoBar* HPInfoBar = Cast<UPlayerHPInfoBar>(HPInfoBarComponent->GetWidget());
 		if (HPInfoBar)
@@ -306,11 +242,11 @@ void AWCharacterBase::SetHPInfoBarColor()
 			}
 			else
 			{
-				if (PS->PlayerInfo.PlayerTeam == E_TeamID::Blue)
+				if (GamePlayerState->PlayerInfo.PlayerTeam == E_TeamID::Blue)
 				{
 					HPInfoBarColor = BlueTeamHPColor; 
 				}
-				else if (PS->PlayerInfo.PlayerTeam == E_TeamID::Red)
+				else if (GamePlayerState->PlayerInfo.PlayerTeam == E_TeamID::Red)
 				{
 					HPInfoBarColor = RedTeamHPColor;
 				}
@@ -349,10 +285,9 @@ void AWCharacterBase::ConfigureOverHeadHealthWidget()
 
 void AWCharacterBase::ShowNickName()
 {
-	AGamePlayerState* PS = Cast<AGamePlayerState>(GetPlayerState());
-	if (PS)
+	if (GamePlayerState)
 	{
-		if (PS->PlayerInfo.PlayerNickName == "")
+		if (GamePlayerState->PlayerInfo.PlayerNickName == "")
 		{
 			FTimerHandle Handle;
 			GetWorld()->GetTimerManager().SetTimer(Handle, this, &ThisClass::ShowNickName, 0.1f, false);
@@ -361,7 +296,7 @@ void AWCharacterBase::ShowNickName()
 		{
 			if (UPlayerHPInfoBar* HPInfoBar = Cast<UPlayerHPInfoBar>(HPInfoBarComponent->GetWidget()))
 			{
-				HPInfoBar->PlayerNickName->SetText(FText::FromString(PS->PlayerInfo.PlayerNickName));
+				HPInfoBar->PlayerNickName->SetText(FText::FromString(GamePlayerState->PlayerInfo.PlayerNickName));
 			}
 		}
 	}
@@ -481,21 +416,20 @@ void AWCharacterBase::VisibleOutline()
 
 void AWCharacterBase::UpdateMovementSpeedData(float Multiplier)
 {
-	AGamePlayerState* PS = GetPlayerState<AGamePlayerState>();
-	if (PS)
+	if (GamePlayerState)
 	{
 		// 속도
-		float CaculatedWalkSpeed = MovementSpeedData.MaxWalkSpeed * PS->ItemSpeed;
+		float CaculatedWalkSpeed = MovementSpeedData.MaxWalkSpeed * GamePlayerState->ItemSpeed;
 		float FinalSpeed = CaculatedWalkSpeed * Multiplier;
 		GetCharacterMovement()->MaxWalkSpeed = FinalSpeed;
 
 		// 가속도
-		float CaculatedAcceleration = MovementSpeedData.MaxAcceleration * PS->ItemSpeed;
+		float CaculatedAcceleration = MovementSpeedData.MaxAcceleration * GamePlayerState->ItemSpeed;
 		float FinalAcceleration = CaculatedAcceleration * Multiplier;
 		GetCharacterMovement()->MaxAcceleration = FinalAcceleration;
 
 		// 제동력
-		float CaculatedBrakingDeceleration = MovementSpeedData.BrakingDeceleration * PS->ItemSpeed;
+		float CaculatedBrakingDeceleration = MovementSpeedData.BrakingDeceleration * GamePlayerState->ItemSpeed;
 		float FinalBrakingDeceleration = CaculatedBrakingDeceleration * Multiplier;
 		GetCharacterMovement()->BrakingDecelerationWalking = FinalBrakingDeceleration;
 
@@ -760,10 +694,9 @@ float AWCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 			GetWorld()->GetTimerManager().SetTimer(SaveDamagedByEnemyTimer, this, &ThisClass::ClearLastHitBy, 7.f, false);
 		}
 		
-		AGamePlayerState* PS = Cast<AGamePlayerState>(GetPlayerState());
-		if (PS)
+		if (GamePlayerState)
 		{
-			PS->Server_ApplyDamage(DamageAmount, LastHitBy, DamageCauser);
+			GamePlayerState->Server_ApplyDamage(DamageAmount, LastHitBy, DamageCauser);
 		}
 	}
 
@@ -799,9 +732,6 @@ void AWCharacterBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ThisClass, CharacterDamage);
-	DOREPLIFETIME(ThisClass, CharacterTeam);
-	DOREPLIFETIME(ThisClass, ControllerRotation);
-	DOREPLIFETIME(ThisClass, Yaw);
 	DOREPLIFETIME(ThisClass, IsCombat);
 	DOREPLIFETIME(ThisClass, bIsQSkillUsing);
 	DOREPLIFETIME(ThisClass, bIsESkillUsing);

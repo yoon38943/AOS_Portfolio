@@ -30,7 +30,7 @@ void AItemStore::NotifyActorBeginOverlap(AActor* OtherActor)
 	if (!OtherActor) return;
 
 	AWCharacterBase* PlayerChar = Cast<AWCharacterBase>(OtherActor);
-	if(!PlayerChar || StoreTeam != PlayerChar->CharacterTeam) return;
+	if(!PlayerChar || StoreTeam != PlayerChar->TeamID) return;
 	
 	GetWorld()->GetTimerManager().SetTimer(PlayerChar->HealingTimerHandle, [this, PlayerChar]()
 	{
@@ -71,7 +71,7 @@ void AItemStore::NotifyActorEndOverlap(AActor* OtherActor)
 	if (!OtherActor) return;
 
 	AWCharacterBase* PlayerChar = Cast<AWCharacterBase>(OtherActor);
-	if(!PlayerChar || StoreTeam != PlayerChar->CharacterTeam) return;
+	if(!PlayerChar || StoreTeam != PlayerChar->TeamID) return;
 
 	if (PlayerChar->HealingTimerHandle.IsValid())
 	{

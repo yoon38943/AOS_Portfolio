@@ -2,6 +2,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Character/WCharacterBase.h"
 #include "Interface/GetInfoInterface.h"
 
 
@@ -11,6 +12,8 @@ void UANS_Shinbi_BasicAttackTrace::NotifyBegin(USkeletalMeshComponent* MeshComp,
 	if (!MeshComp->GetOwner()->HasAuthority()) return;
 	
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration);
+
+	Player = Cast<AWCharacterBase>(MeshComp->GetOwner());
 
 	MeshComp->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
@@ -43,8 +46,18 @@ void UANS_Shinbi_BasicAttackTrace::NotifyTick(USkeletalMeshComponent* MeshComp, 
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(MeshComp->GetOwner());
 
+	ECollisionChannel EnemyCollision;
+	if (Player->GetTeamID() == E_TeamID::Blue)
+	{
+		EnemyCollision = TeamCollision::RedTeam;
+	}
+	else
+	{
+		EnemyCollision = TeamCollision::BlueTeam;
+	}
+
 	FCollisionObjectQueryParams ObjectParams;
-	ObjectParams.AddObjectTypesToQuery(ECC_GameTraceChannel1);
+	ObjectParams.AddObjectTypesToQuery(EnemyCollision);
 
 	MeshComp->GetWorld()->SweepMultiByObjectType(
 		HitResults,
