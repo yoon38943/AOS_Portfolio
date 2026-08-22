@@ -8,6 +8,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "GameplayTagsManager.h"
 #include "Interface/Interface_CharacterAction.h"
+#include "PersistentGame/GamePlayerState.h"
 
 void UGA_Shinbi_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
                                              const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
@@ -133,7 +134,13 @@ void UGA_Shinbi_BasicAttack::DoDamage(FGameplayEventData Data)
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
 	if (!TargetASC) return;
 
-	FGameplayEffectContextHandle EffectContext = MakeEffectContext(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo());
+	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(AvatarActor);
+	if (!SourceASC) return;
+
+	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+	if (!EffectContext.IsValid()) return;
+
+	EffectContext.AddInstigator(AvatarActor, AvatarActor);
 	
 	if (Data.TargetData.IsValid(0))
 	{
@@ -144,18 +151,14 @@ void UGA_Shinbi_BasicAttack::DoDamage(FGameplayEventData Data)
 		}
 	}
 
-	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(BasicAttack_DamageEffect, GetAbilityLevel(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo()));
+	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(BasicAttack_DamageEffect, GetAbilityLevel(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo()), EffectContext);
 	if (!SpecHandle.IsValid()) return;
-
-	SpecHandle.Data->SetContext(EffectContext);
 
 	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(
 		SpecHandle,
 		FGameplayTag::RequestGameplayTag("ability.data.damage"),
-		-10.f
+		1.f
 	);
-
-	FGameplayAbilityTargetDataHandle TargetDataHandle = Data.TargetData;
 	
-	(void)ApplyGameplayEffectSpecToTarget(GetCurrentAbilitySpecHandle(), CurrentActorInfo, CurrentActivationInfo, SpecHandle, TargetDataHandle);
+	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 }

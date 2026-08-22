@@ -158,5 +158,5 @@ protected:
 
 public:
 	virtual void OnPossess(APawn* NewPawn) override;
-	virtual void AcknowledgePossession(APawn* NewPawn) override;
+	virtual void OnRep_PlayerState() override;
 };

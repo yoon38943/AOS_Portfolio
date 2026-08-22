@@ -58,6 +58,7 @@ void UANS_Shinbi_BasicAttackTrace::NotifyTick(USkeletalMeshComponent* MeshComp, 
 
 	FCollisionObjectQueryParams ObjectParams;
 	ObjectParams.AddObjectTypesToQuery(EnemyCollision);
+	//ObjectParams.AddObjectTypesToQuery(ECC_GameTraceChannel1);
 
 	MeshComp->GetWorld()->SweepMultiByObjectType(
 		HitResults,
@@ -88,7 +89,6 @@ void UANS_Shinbi_BasicAttackTrace::NotifyTick(USkeletalMeshComponent* MeshComp, 
 		IGetInfoInterface* SourceTeam = Cast<IGetInfoInterface>(MeshComp->GetOwner());
 
 		if (!TargetTeam || !SourceTeam) continue;
-		//if (TargetTeam->GetTeamID() == SourceTeam->GetTeamID()) continue;
 
 		HitActors.Add(HitActor);
 
@@ -99,7 +99,6 @@ void UANS_Shinbi_BasicAttackTrace::NotifyTick(USkeletalMeshComponent* MeshComp, 
 		FGameplayAbilityTargetData_SingleTargetHit* TargetData = new FGameplayAbilityTargetData_SingleTargetHit(Result);
 		EventData.TargetData.Add(TargetData);
 
-		UE_LOG(LogTemp, Warning, TEXT("SendGameplayEvent 호출 - 대상: %s"), *HitActor->GetName());
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(MeshComp->GetOwner(), EventTag, EventData);
 	}
 

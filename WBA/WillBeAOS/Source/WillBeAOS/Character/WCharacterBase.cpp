@@ -47,12 +47,6 @@ AWCharacterBase::AWCharacterBase()
 	
 	SightComp = CreateDefaultSubobject<UVisibleWidgetComponent>(TEXT("SightComponent"));
 
-	WAbilitySystemComponent = CreateDefaultSubobject<UWAbilitySystemComponent>(TEXT("ASC"));
-	WAbilitySystemComponent->SetIsReplicated(true);
-	WAbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Full);
-	
-	WAttributeSet = CreateDefaultSubobject<UWAttributeSet>(TEXT("AttributeSet"));
-
 	SetReplicateMovement(true);
 	bAlwaysRelevant = true;
 
@@ -67,21 +61,53 @@ AWCharacterBase::AWCharacterBase()
 	}
 }
 
-void AWCharacterBase::ServerSideInit()
+void AWCharacterBase::InitialAbilitySystem()
 {
-	WAbilitySystemComponent->InitAbilityActorInfo(this, this);
-	WAbilitySystemComponent->ApplyInitialEffects();
-	WAbilitySystemComponent->GiveInitialAbilities();
+	GamePlayerState = GetPlayerState<AGamePlayerState>();
+	if (!GamePlayerState) return;
+
+	AbilitySystemComponent = GamePlayerState->GetAbilitySystemComponent();
+	if (!AbilitySystemComponent) return;
+
+	AbilitySystemComponent->InitAbilityActorInfo(GamePlayerState, this);
+
+	if (!HasAuthority())
+	{
+		ConfigureOverHeadHealthWidget();
+	}
 }
 
-void AWCharacterBase::ClientSideInit()
+void AWCharacterBase::ServerSideInit()
 {
-	WAbilitySystemComponent->InitAbilityActorInfo(this, this);
+	if (!GamePlayerState || !AbilitySystemComponent) return;
+	
+	AbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, CharacterName);
+	AbilitySystemComponent->ApplyInitialEffects(InitialEffects);
+	AbilitySystemComponent->GiveInitialAbilities(Abilities, BasicAbilities);
+	AbilitySystemComponent->SetIsNotStartGame();
+
+	RegisterTagEvent();
+}
+
+void AWCharacterBase::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	InitialAbilitySystem();
+	ServerSideInit();
+}
+
+void AWCharacterBase::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	InitialAbilitySystem();
+
 }
 
 void AWCharacterBase::RegisterTagEvent()
 {
-	WAbilitySystemComponent->RegisterGameplayTagEvent(
+	AbilitySystemComponent->RegisterGameplayTagEvent(
 		FGameplayTag::RequestGameplayTag("state.combat"),
 		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AWCharacterBase::OnCombatTagChanged);
 }
@@ -103,7 +129,9 @@ void AWCharacterBase::HandleAbilityInputReleased(const FInputActionValue& Value,
 
 UAbilitySystemComponent* AWCharacterBase::GetAbilitySystemComponent() const
 {
-	return WAbilitySystemComponent;
+	if (AbilitySystemComponent)
+		return AbilitySystemComponent;
+	return nullptr;
 }
 
 void AWCharacterBase::MoveDecalToCameraForward()
@@ -130,12 +158,9 @@ void AWCharacterBase::BeginPlay()
 		// 게임 종료 델리게이트 바인딩 ( 서버에서만 일어남 )
 		GM->OnGameEnd.AddUObject(this, &ThisClass::HandleGameEnd);
 	}
-
-	GamePlayerState = Cast<AGamePlayerState>(GetPlayerState());
 	
 	if (!HasAuthority())
-	{		
-		ConfigureOverHeadHealthWidget();
+	{
 		SetHPInfoBarColor();
 		ShowNickName();
 	}
@@ -201,6 +226,15 @@ void AWCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 			EnhancedInputComponent->BindAction(InputActionPair.Value, ETriggerEvent::Completed, this, &AWCharacterBase::HandleAbilityInputReleased, InputActionPair.Key);
 		}
 	}
+}
+
+UWAbilitySystemComponent* AWCharacterBase::GetGameplayerStateASC() const
+{
+	if (AGamePlayerState* PS = GetPlayerState<AGamePlayerState>())
+	{
+		return PS->GetAbilitySystemComponent();
+	}
+	return nullptr;
 }
 
 void AWCharacterBase::SetTeamCollision()
@@ -279,7 +313,7 @@ void AWCharacterBase::ConfigureOverHeadHealthWidget()
 	UPlayerHPInfoBar* HpInfoBar = Cast<UPlayerHPInfoBar>(HPInfoBarComponent->GetWidget());
 	if (HpInfoBar)
 	{
-		HpInfoBar->SetAndBoundToGameplayAttribute(WAbilitySystemComponent, UWAttributeSet::GetHealthAttribute(), UWAttributeSet::GetMaxHealthAttribute());
+		HpInfoBar->SetAndBoundToGameplayAttribute(AbilitySystemComponent, UWAttributeSet::GetHealthAttribute(), UWAttributeSet::GetMaxHealthAttribute());
 	}
 }
 

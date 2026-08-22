@@ -19,6 +19,9 @@ public:
 	ATTRIBUTE_ACCESSORS(UWAttributeSet, Health)	
 	ATTRIBUTE_ACCESSORS(UWAttributeSet, MaxHealth)
 	ATTRIBUTE_ACCESSORS(UWAttributeSet, AttackStat)
+	ATTRIBUTE_ACCESSORS(UWAttributeSet, DefenseStat)
+	ATTRIBUTE_ACCESSORS(UWAttributeSet, SpeedStat)
+	
 	virtual void GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const override;
 
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
@@ -34,6 +37,12 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_AttackStat)
 	FGameplayAttributeData AttackStat;
 
+	UPROPERTY(ReplicatedUsing = OnRep_AttackStat)
+	FGameplayAttributeData DefenseStat;
+
+	UPROPERTY(ReplicatedUsing = OnRep_AttackStat)
+	FGameplayAttributeData SpeedStat;
+
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldValue);
 
@@ -42,4 +51,10 @@ private:
 
 	UFUNCTION()
 	void OnRep_AttackStat(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_DefenseStat(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_SpeedStat(const FGameplayAttributeData& OldValue);
 };

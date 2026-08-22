@@ -18,7 +18,9 @@ class WILLBEAOS_API UWCharacterHUD : public UUserWidget
 	GENERATED_BODY()
 
 public: // GAS
-	void SetAndBoundToGameplayAttribute(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAttribute& Attribute, const FGameplayAttribute& MaxAttribute);
+	void SetAttributeSetStatInfo(AGamePlayerState* PS);
+	
+	void SetAndBoundToGameplayAttribute(UWAbilitySystemComponent* AbilitySystemComponent, const FGameplayAttribute& Attribute, const FGameplayAttribute& MaxAttribute);
 
 	void SetValue(float NewValue, float NewMaxValue);
 
@@ -29,7 +31,7 @@ public: // GAS
 	float CachedMaxValue;
 
 	UPROPERTY()
-	UAbilitySystemComponent* OwnerAbilitySystemComponent;
+	UWAbilitySystemComponent* OwnerAbilitySystemComponent;
 public:
 
 	FTimerHandle TimerHandle;

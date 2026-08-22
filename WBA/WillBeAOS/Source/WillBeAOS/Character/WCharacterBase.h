@@ -14,6 +14,7 @@
 
 #define PLAYERKILLGOLD 100
 
+class UGameplayEffect;
 class AWPlayerState;
 struct FGameplayTag;
 class UGameplayAbility;
@@ -37,8 +38,10 @@ public IAbilitySystemInterface, public IInterface_CharacterAction
 
 public:
 	AWCharacterBase();
-	void ServerSideInit();
-	void ClientSideInit();
+
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
+
 
 	bool bIsCombat;
 	void RegisterTagEvent();
@@ -61,6 +64,8 @@ public:
 public:
 	UPROPERTY()
 	AGamePlayerState* GamePlayerState;
+
+	UWAbilitySystemComponent* GetGameplayerStateASC() const;
 	
 	void SetTeamCollision();
 	
@@ -127,14 +132,29 @@ public:
 	// GAS 시스템
 	/*********************************************************/
 
-	bool bIsSetForward = true;
+	void InitialAbilitySystem();
+	void ServerSideInit();
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
 private:
-	UPROPERTY(VisibleDefaultsOnly, Category = "Gameplay Ability")
-	UWAbilitySystemComponent* WAbilitySystemComponent;
-	UPROPERTY(VisibleDefaultsOnly, Category = "Gameplay Ability")
-	UWAttributeSet* WAttributeSet;
+	UPROPERTY()
+	UWAbilitySystemComponent* AbilitySystemComponent;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Effects")
+	TSubclassOf<UGameplayEffect> InitStatEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stat")
+	TObjectPtr<UDataTable> StatTable;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Effects")
+	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Abilities")
+	TMap<EWAbilityInputID, TSubclassOf<UGameplayAbility>> Abilities;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Abilities")
+	TMap<EWAbilityInputID, TSubclassOf<UGameplayAbility>> BasicAbilities;
 
 public:
 	/*********************************************************/

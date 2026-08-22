@@ -14,6 +14,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly)
 	UCapsuleComponent* TeamTraceCollision;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Effects")
+	FName CharacterName;
+
 public:
 	AAOSCharacter();
 

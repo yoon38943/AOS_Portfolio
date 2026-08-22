@@ -72,38 +72,18 @@ TArray<AActor*> AChar_Shinbi::GetTartgetInCenter()
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(this);
 
-	if (APlayGameState* GS = Cast<APlayGameState>(GetWorld()->GetGameState()))
+	ECollisionChannel EnemyChannel;
+	if (GetTeamID() == E_TeamID::Blue)
 	{
-		for (TWeakObjectPtr<AActor> WeakActor : GS->CachedActors)
-		{
-			if (WeakActor.IsValid())
-			{
-				AActor* Ally = WeakActor.Get();
-				
-				if (!IsValid(Ally)) continue;
-			
-				// AAOSCharacter 중 아군 채널 제외
-				AAOSCharacter* InGameChar = Cast<AAOSCharacter>(Ally);
-				if (InGameChar)
-				{
-					if (InGameChar->TeamID == TeamID)
-						ActorsToIgnore.Add(Ally);
-				}
-
-				// AAOSActor 중 아군 채널 제외
-				AAOSActor* InGameActor = Cast<AAOSActor>(Ally);
-				if (InGameActor)
-				{
-					if (IsValid(InGameActor) && InGameActor->TeamID == TeamID)
-						ActorsToIgnore.Add(Ally);
-				}
-			}
-		}
+		EnemyChannel = TeamCollision::RedTeam;
+	}
+	else
+	{
+		EnemyChannel = TeamCollision::BlueTeam;
 	}
 	
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(EnemyChannel));
 
 	bool AttackSuccess = UKismetSystemLibrary::BoxTraceMultiForObjects(
 		GetWorld(),
@@ -126,22 +106,16 @@ TArray<AActor*> AChar_Shinbi::GetTartgetInCenter()
 
 	if (AttackSuccess)
 	{
-		for (int32 i = 0; i < Hits.Num(); ++i)
-		{
-			const FHitResult& Elem = Hits[i];
-			bool bIsLast = (i == Hits.Num() - 1);
-			
+		for (auto& Elem : Hits)
+		{			
 			if (!Cast<AAOSCharacter>(Elem.GetActor()) && !Cast<AAOSActor>(Elem.GetActor())) continue;
 
 			AllTarget.AddUnique(Elem.GetActor());
-
-			if (bIsLast)
-			{
-				return AllTarget;
-			}
 		}
+
+		return AllTarget;
 	}
-	
+
 	return AllTarget;
 }
 

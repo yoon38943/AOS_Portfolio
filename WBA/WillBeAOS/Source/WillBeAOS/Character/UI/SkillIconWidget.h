@@ -9,7 +9,8 @@
 #include "Components/TextBlock.h"
 #include "SkillIconWidget.generated.h"
 
-class UAbilitySystemComponent;
+class AGamePlayerState;
+class UWAbilitySystemComponent;
 
 UCLASS()
 class WILLBEAOS_API USkillIconWidget : public UUserWidget
@@ -20,6 +21,12 @@ protected:
 	virtual void NativeConstruct() override;
 
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
+	UPROPERTY()
+	AGamePlayerState* PlayerState;
+
+	UFUNCTION()
+	void InitializeASC();
 
 	UFUNCTION()
 	void Handle_SkillUsed(const FGameplayTag Tag, int32 NewCount);
@@ -46,7 +53,7 @@ protected:
 
 private:
 	UPROPERTY()
-	UAbilitySystemComponent* OwnerASC;
+	UWAbilitySystemComponent* OwnerASC;
 
 	UPROPERTY(EditInstanceOnly, Category = "Cooldown")
 	FGameplayTag CooldownTag;

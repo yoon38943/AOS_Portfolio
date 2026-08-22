@@ -41,12 +41,6 @@ void UPlayerHPInfoBar::SetValue(float NewValue, float NewMaxValue)
 {
 	CachedValue = NewValue;
 	CachedMaxValue = NewMaxValue;
-	
-	if (NewMaxValue == 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Value Guage: %s, NewMaxValue can't be 0"), *GetName());
-		return;
-	}
 
 	float NewPercent = NewValue / NewMaxValue;
 	PlayerHPBar->SetPercent(NewPercent);

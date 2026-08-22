@@ -72,10 +72,10 @@ void AWMinionsCharacterBase::BeginPlay()
 	Super::BeginPlay();
 
 	WAbilitySystemComponent->InitAbilityActorInfo(this, this);
+	WAbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, CharacterName);
+	WAbilitySystemComponent->ApplyInitialEffects(InitialEffects);
 	
 	CombatComponent->DelegateDead.BindUObject(this, &ThisClass::Dead);
-	//HandleApplyPointDamage 멀티델리게이트 바인딩
-	CombatComponent->DelegatePointDamage.AddUObject(this, &ThisClass::HandleApplyPointDamage);
 
 	APlayGameMode* GM = Cast<APlayGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 	if (GM)
@@ -87,7 +87,7 @@ void AWMinionsCharacterBase::BeginPlay()
 	FindPlayerPC();
 
 	if (HasAuthority())
-	{
+	{		
 		APlayGameState* GS = Cast<APlayGameState>(GetWorld()->GetGameState());
 		if (GS)
 		{
@@ -105,6 +105,11 @@ void AWMinionsCharacterBase::BeginPlay()
 
 	if (!HasAuthority())
 	{
+		UHealthBar* HpInfoBar = Cast<UHealthBar>(WidgetComponent->GetWidget());
+		if (HpInfoBar)
+		{
+			HpInfoBar->SetAndBoundToGameplayAttribute(WAbilitySystemComponent, UWAttributeSet::GetHealthAttribute(), UWAttributeSet::GetMaxHealthAttribute());
+		}
 		StartSetHPbarColor();
 	}
 }
@@ -183,22 +188,6 @@ void AWMinionsCharacterBase::DetachToTarget_Implementation(AActor* WObject)
 void AWMinionsCharacterBase::CanAttackToTarget_Implementation(AActor* WObject)
 {
 	// 블루프린트 내 구현
-}
-
-void AWMinionsCharacterBase::S_SetHpPercentage_Implementation(float Health, float MaxHealth)
-{
-	SetHpPercentage(Health, MaxHealth);
-}
-
-void AWMinionsCharacterBase::SetHpPercentage_Implementation(float Health, float MaxHealth)
-{
-	auto Widget = Cast<UHealthBar>(WidgetComponent->GetWidget());
-
-	if (Widget != nullptr)
-	{
-		if (MaxHealth != 0)
-			Widget->HealthBar->SetPercent(Health / MaxHealth);
-	}
 }
 
 void AWMinionsCharacterBase::StartSetHPbarColor()
@@ -299,52 +288,6 @@ void AWMinionsCharacterBase::NM_BeingDead_Implementation()
 		// HP Widget 없애기
 		WidgetComponent->SetVisibility(false);
 	}
-}
-
-void AWMinionsCharacterBase::HandleApplyPointDamage(FHitResult LastHit)
-{
-	if (HasAuthority())
-	{
-		// ----- 같은팀 캐릭터, 미니언 타격 무효 -----
-		AAOSCharacter* HitCharacter = Cast<AAOSCharacter>(LastHit.GetActor());
-		if (HitCharacter)
-		{
-			if (this->TeamID == HitCharacter->TeamID) return;
-		}
-		// ----- 같은팀 타워, 넥서스 타격 무효 -----
-		AAOSActor* HitObject = Cast<AAOSActor>(LastHit.GetActor());
-		if (HitObject)
-		{
-			if (this->TeamID == HitObject->TeamID) return;
-		}
-
-		// ------ 다른팀 오브젝트 타격시 -----
-		UGameplayStatics::ApplyPointDamage(
-			LastHit.GetActor(),
-			CharacterDamage,
-			GetOwner()->GetActorForwardVector(),
-			LastHit,
-			GetInstigatorController(),
-			this,
-			UDamageType::StaticClass()
-		);
-	}
-}
-
-float AWMinionsCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent,
-	AController* EventInstigator, AActor* DamageCauser)
-{
-	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	if (!HasAuthority()) return 0.f;
-	
-	LastHitBy = EventInstigator;	// 타격 캐릭터 저장
-	
-	float TakeDamage = DamageAmount;
-	CombatComponent->HandleTakeDamage(TakeDamage);
-
-	SetHpPercentage((CombatComponent->Health), (CombatComponent->Max_Health));
-
-	return DamageAmount;
 }
 
 void AWMinionsCharacterBase::NM_Minion_Attack_Implementation()

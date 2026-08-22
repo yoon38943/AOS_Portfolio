@@ -42,6 +42,8 @@ private:
 	FVector PrevLocation;
 	
 	void CheckHitPath();
+
+	FVector GetClosestPoint(AActor* HitActor);
 	
 	void ApplyDamageToTarget(AActor* HitActor, FHitResult& HitResult);
 };

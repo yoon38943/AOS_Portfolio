@@ -10,7 +10,6 @@
 #include "../Character/UI/TowerNexusHPWidget.h"
 #include "../Character/WCharacterHUD.h"
 #include "Game/WGameInstance.h"
-#include "Gimmick/PlayerSpawner.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -29,6 +28,16 @@ void AGamePlayerController::BeginPlay()
 		}
 		
 		CheckCharacterSelectLevelLoaded();
+	}
+
+	//에디터 테스트
+	if (IsLocalController() && GetWorld() && GetWorld()->IsPlayInEditor())
+	{
+		PlayerHUD = CreateWidget<UWCharacterHUD>(this, UserWidgetClass);
+		if (PlayerHUD)
+		{
+			PlayerHUD->AddToViewport();
+		}
 	}
 }
 
@@ -240,7 +249,10 @@ void AGamePlayerController::StartInGamePhase()
 		{
 			PlayerHUD = CreateWidget<UWCharacterHUD>(this, UserWidgetClass);
 			if (PlayerHUD)
+			{
+				PlayerHUD->SetAttributeSetStatInfo(GetPlayerState<AGamePlayerState>());
 				PlayerHUD->AddToViewport();
+			}
 		}
 
 		// 플레이어 준비 됐다고 신호 보내기
@@ -414,21 +426,19 @@ void AGamePlayerController::OnPossess(APawn* NewPawn)
 	AWCharacterBase* PlayerChar = Cast<AWCharacterBase>(NewPawn);
 	if (PlayerChar)
 	{
-		PlayerChar->ServerSideInit();
 		if (AGamePlayerState* WPlayerState = GetPlayerState<AGamePlayerState>())
 			PlayerChar->TeamID = WPlayerState->InGamePlayerInfo.PlayerTeam;
 		UE_LOG(LogTemp, Log, TEXT("AWPlayerController::OnPossess %d"),PlayerChar->TeamID);
 	}
 }
 
-void AGamePlayerController::AcknowledgePossession(APawn* NewPawn)
+void AGamePlayerController::OnRep_PlayerState()
 {
-	Super::AcknowledgePossession(NewPawn);
-	
-	AWCharacterBase* PlayerChar = Cast<AWCharacterBase>(NewPawn);
-	if (PlayerChar)
+	Super::OnRep_PlayerState();
+
+	if (PlayerHUD && GetWorld()->IsPlayInEditor())
 	{
-		PlayerChar->ClientSideInit();
+		PlayerHUD->SetAttributeSetStatInfo(GetPlayerState<AGamePlayerState>());
 	}
 }
 

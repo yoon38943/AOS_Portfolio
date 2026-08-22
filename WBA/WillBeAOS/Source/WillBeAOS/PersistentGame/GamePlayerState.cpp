@@ -1,19 +1,25 @@
 #include "PersistentGame/GamePlayerState.h"
 
-#include "GamePlayerController.h"
 #include "PlayGameMode.h"
 #include "PlayGameState.h"
 #include "Character/WCharacterBase.h"
 #include "Character/WCharacterHUD.h"
 #include "Character/Skill/SkillDataTable.h"
 #include "Game/WGameInstance.h"
+#include "GAS/WAbilitySystemComponent.h"
 #include "Net/UnrealNetwork.h"
 
 
 AGamePlayerState::AGamePlayerState()
 {
+	WAbilitySystemComponent = CreateDefaultSubobject<UWAbilitySystemComponent>(TEXT("ASC"));
+	WAbilitySystemComponent->SetIsReplicated(true);
+	WAbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Full);
+
+	WAttributeSet = CreateDefaultSubobject<UWAttributeSet>(TEXT("AttributeSet"));
+	
 	bReplicates = true;
-	NetUpdateFrequency = 100.f;
+	SetNetUpdateFrequency(100.f);
 }
 
 void AGamePlayerState::BeginPlay()

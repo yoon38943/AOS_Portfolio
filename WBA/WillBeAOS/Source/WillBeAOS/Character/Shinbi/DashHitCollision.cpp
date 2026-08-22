@@ -2,6 +2,9 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Character/AOSActor.h"
+#include "Gimmick/Nexus.h"
+#include "Gimmick/Tower.h"
 #include "Interface/GetInfoInterface.h"
 
 
@@ -64,7 +67,7 @@ void ADashHitCollision::CheckHitPath()
 	FCollisionObjectQueryParams ObjectParams;
 	ObjectParams.AddObjectTypesToQuery(EnemyCollision);
 
-	GetWorld()->SweepMultiByObjectType(
+	bool bHit = GetWorld()->SweepMultiByObjectType(
 		HitResults,
 		PrevLocation,
 		GetActorLocation(),
@@ -74,6 +77,10 @@ void ADashHitCollision::CheckHitPath()
 		Params
 	);
 
+	if (!bHit) return;
+
+	TMap<AActor*, FHitResult> TickBestHits;
+
 	for (auto& HitResult : HitResults)
 	{
 		AActor* HitActor = HitResult.GetActor();
@@ -81,7 +88,6 @@ void ADashHitCollision::CheckHitPath()
 
 		const IGetInfoInterface* TargetTeam = Cast<IGetInfoInterface>(HitActor);
 		const IGetInfoInterface* SourceTeam = Cast<IGetInfoInterface>(SkillOwner);
-
 		if (!TargetTeam || !SourceTeam) continue;
 
 		HitActors.Add(HitActor);
@@ -89,21 +95,35 @@ void ADashHitCollision::CheckHitPath()
 	}
 }
 
+FVector ADashHitCollision::GetClosestPoint(AActor* HitActor)
+{
+	UPrimitiveComponent* TargetComp;
+	if (ANexus* Nexus = Cast<ANexus>(HitActor))
+		TargetComp = Nexus->GetMesh();
+	else if (ATower* Tower = Cast<ATower>(HitActor))
+		TargetComp = Tower->GetMesh();
+	else
+		TargetComp = Cast<UPrimitiveComponent>(HitActor->GetRootComponent());
+	
+	FVector ClosestPoint;
+	if (TargetComp)
+	{
+		FVector DashDirection = (GetActorLocation() - PrevLocation).GetSafeNormal();
+		TargetComp->GetClosestPointOnCollision(GetActorLocation() - (DashDirection * 50), ClosestPoint);
+		return ClosestPoint;
+	}
+	return GetActorLocation();
+}
+
 void ADashHitCollision::ApplyDamageToTarget(AActor* HitActor, FHitResult& HitResult)
 {
 	if (!HitActor) return;
 
-	UE_LOG(LogTemp, Display, TEXT("Apply Damage1"));
-
 	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(SkillOwner);
 	if (!SourceASC) return;
 
-	UE_LOG(LogTemp, Display, TEXT("Owner : %s"), *SkillOwner->GetName());
-
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
 	if (!TargetASC) return;
-
-	UE_LOG(LogTemp, Display, TEXT("Apply Damage3"));
 
 	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
 	EffectContext.AddInstigator(SkillOwner, this);
@@ -111,8 +131,6 @@ void ADashHitCollision::ApplyDamageToTarget(AActor* HitActor, FHitResult& HitRes
 
 	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(Shinbi_RMSkill_DamageEffect, 1.f, EffectContext);
 	if (!SpecHandle.IsValid()) return;
-
-	UE_LOG(LogTemp, Display, TEXT("Apply Damage4"));
 
 	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(
 		SpecHandle,

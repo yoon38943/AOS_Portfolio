@@ -1,8 +1,8 @@
 #include "Character/UI/SkillIconWidget.h"
 
-#include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Character/Skill/SkillDataTable.h"
+#include "GAS/WAbilitySystemComponent.h"
 #include "PersistentGame/GamePlayerState.h"
 
 
@@ -21,59 +21,6 @@ void USkillIconWidget::NativeConstruct()
 	{
 		CooldownProgress->SetVisibility(ESlateVisibility::Hidden);
 	}
-
-	AWCharacterBase* OwnerChar = Cast<AWCharacterBase>(GetOwningPlayerPawn());
-	if (OwnerChar)
-	{
-		OwnerASC = OwnerChar->GetAbilitySystemComponent();
-
-		FName SkillIDName;
-		switch (SkillID)
-		{
-		case ESkillSlot::RM:
-			SkillIDName = "RMSkill";
-			break;
-		case ESkillSlot::Q:
-			SkillIDName = "QSkill";
-			break;
-		case ESkillSlot::E:
-			SkillIDName = "Eskill";
-			break;
-		case ESkillSlot::R:
-			SkillIDName = "RSkill";
-			break;
-		}
-			
-		FSkillDataTable* DataTable = OwnerChar->SkillDataTable->FindRow<FSkillDataTable>(SkillIDName, TEXT(""));
-		if (DataTable)
-		{
-			UTexture2D* SkillImage = DataTable->SkillIcon;
-			SkillIcon->SetBrushFromTexture(SkillImage);
-		}
-
-		OwnerASC->RegisterGameplayTagEvent(
-			CooldownTag,
-			EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::Handle_SkillUsed);
-
-		if (InternalCooldownTag.IsValid())
-		{
-			OwnerASC->RegisterGameplayTagEvent(
-				InternalCooldownTag,
-				EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::Handle_InternalSkillUsed);
-		}
-	}
-	
-	AGamePlayerState* PS = Cast<AGamePlayerState>(GetOwningPlayer());
-	if (PS)
-	{
-		PS->LoadSkillIcon.BindUObject(this, &ThisClass::LoadSkillIcon);
-		//PS->OnSkillCooldown.AddDynamic(this, &ThisClass::Handle_SkillUsed);
-		
-		/*if (SkillIcon && PS->InGamePlayerInfo.SelectedCharacter)
-		{
-			AWCharacterBase* DefaultCharacter = PS->InGamePlayerInfo.SelectedCharacter->GetDefaultObject<AWCharacterBase>();
-		}*/
-	}
 }
 
 void USkillIconWidget::LoadSkillIcon()
@@ -81,26 +28,25 @@ void USkillIconWidget::LoadSkillIcon()
 	APlayerController* PC = GetOwningPlayer();
 	if (PC)
 	{
-		AGamePlayerState* PS = PC->GetPlayerState<AGamePlayerState>();
-		if (PS)
+		if (PlayerState)
 		{
 			if (SkillIcon)
 			{
-				AWCharacterBase* DefaultCharacter = PS->InGamePlayerInfo.SelectedCharacter->GetDefaultObject<AWCharacterBase>();
+				AWCharacterBase* DefaultCharacter = PlayerState->InGamePlayerInfo.SelectedCharacter->GetDefaultObject<AWCharacterBase>();
 				if (DefaultCharacter)
 				{
 					FName SkillIDName;
 					switch (SkillID)
 					{
-					case ESkillSlot::Q:
-						SkillIDName = "QSkill";
-						break;
-					case ESkillSlot::E:
-						SkillIDName = "ESkill";
-						break;
-					case ESkillSlot::R:
-						SkillIDName = "RSkill";
-						break;
+						case ESkillSlot::Q:
+							SkillIDName = "QSkill";
+							break;
+						case ESkillSlot::E:
+							SkillIDName = "ESkill";
+							break;
+						case ESkillSlot::R:
+							SkillIDName = "RSkill";
+							break;
 					}
 					
 					FSkillDataTable* DataTable = DefaultCharacter->SkillDataTable->FindRow<FSkillDataTable>(SkillIDName, TEXT(""));
@@ -228,12 +174,6 @@ void USkillIconWidget::Handle_InternalSkillUsed(const FGameplayTag Tag, int32 Ne
 			CooldownProgress->SetFillColorAndOpacity(InternalCooldownColor);
 			CooldownProgress->SetVisibility(ESlateVisibility::Visible);
 		}
-
-		/*// 스킬 아이콘 흐리게
-		if (SkillIcon)
-		{
-			SkillIcon->SetRenderOpacity(0.5f);
-		}*/
 	}
 }
 
@@ -241,6 +181,11 @@ void USkillIconWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+	if (!PlayerState)
+	{
+		InitializeASC();
+	}
+	
 	if (!GetOwningPlayerPawn()->IsLocallyControlled()) return;
 	if (!bIsCoolingDown) return;
 
@@ -248,4 +193,56 @@ void USkillIconWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 		CooldownUpdate(true);
 	else
 		CooldownUpdate(false);
+}
+
+void USkillIconWidget::InitializeASC()
+{
+	PlayerState = GetOwningPlayer()->GetPlayerState<AGamePlayerState>();
+	if (!PlayerState) return;
+	
+	AWCharacterBase* OwnerChar = Cast<AWCharacterBase>(GetOwningPlayerPawn());
+	if (OwnerChar)
+	{
+		FName SkillIDName;
+		switch (SkillID)
+		{
+			case ESkillSlot::RM:
+				SkillIDName = "RMSkill";
+				break;
+			case ESkillSlot::Q:
+				SkillIDName = "QSkill";
+				break;
+			case ESkillSlot::E:
+				SkillIDName = "Eskill";
+				break;
+			case ESkillSlot::R:
+				SkillIDName = "RSkill";
+				break;
+		}
+			
+		FSkillDataTable* DataTable = OwnerChar->SkillDataTable->FindRow<FSkillDataTable>(SkillIDName, TEXT(""));
+		if (DataTable)
+		{
+			UTexture2D* SkillImage = DataTable->SkillIcon;
+			SkillIcon->SetBrushFromTexture(SkillImage);
+		}
+
+		OwnerASC = PlayerState->GetAbilitySystemComponent();
+		
+		OwnerASC->RegisterGameplayTagEvent(
+			CooldownTag,
+			EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::Handle_SkillUsed);
+
+		if (InternalCooldownTag.IsValid())
+		{
+			OwnerASC->RegisterGameplayTagEvent(
+				InternalCooldownTag,
+				EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::Handle_InternalSkillUsed);
+		}
+	}
+	
+	if (PlayerState)
+	{
+		PlayerState->LoadSkillIcon.BindUObject(this, &ThisClass::LoadSkillIcon);
+	}
 }

@@ -44,8 +44,6 @@ public:
 	// ---------------------------------------------
 	public:
 	void StartInGamePhase();
-
-	void AfterCharacterSpawn();
 	
 	UPROPERTY(Replicated)
 	bool bIsGameReady = false;
@@ -67,9 +65,16 @@ public:
 	void Server_TakePlayerInfo(const FString& PlayerName);
 
 public:
+	UPROPERTY()
 	class APlayerSpawner* PlayerSpawner;
 	
 protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	UWAbilitySystemComponent* WAbilitySystemComponent;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	UWAttributeSet* WAttributeSet;
+	
 	UPROPERTY(ReplicatedUsing=OnRep_Health)
 	float HP;
 	UPROPERTY(Replicated)
@@ -79,6 +84,8 @@ protected:
 	void OnRep_Health();
 	
 public:
+	UWAbilitySystemComponent* GetAbilitySystemComponent() const { return WAbilitySystemComponent; }
+	
 	FOnHealthChanged OnHealthChanged;
 	
 	UFUNCTION(BlueprintPure)

@@ -79,7 +79,7 @@
 		},
 		{
 			"Name": "LudusAI",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "AnimationLocomotionLibrary",

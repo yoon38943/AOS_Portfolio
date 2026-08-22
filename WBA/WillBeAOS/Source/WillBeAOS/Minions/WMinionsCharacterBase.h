@@ -8,6 +8,7 @@
 
 #define MINIONKILLGOLD 30
 
+class UGameplayEffect;
 class UAbilitySystemComponent;
 class UWAttributeSet;
 class UWAbilitySystemComponent;
@@ -48,6 +49,15 @@ private:
 	UWAbilitySystemComponent* WAbilitySystemComponent;
 	UPROPERTY(VisibleDefaultsOnly, Category = "Gameplay Ability")
 	UWAttributeSet* WAttributeSet;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TSubclassOf<UGameplayEffect> InitStatEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stat")
+	TObjectPtr<UDataTable> StatTable;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Effects")
+	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
 
 public:
 	// ----- HP 위젯 조절 함수 -----
@@ -106,23 +116,13 @@ public:	//타격 관련
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UAnimMontage* MinionAttackMontage;
-	
-	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void HandleApplyPointDamage(FHitResult LastHit);//포인트 데미지를 줄시 델리게이트로 호출될 함수
-	UFUNCTION(BlueprintCallable, Category = "Combat")
-	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
-	UPROPERTY(BlueprintReadWrite, Category = "Combat")
-	float CharacterDamage;	//데미지
+
 	UFUNCTION(NetMulticast,BlueprintCallable, Reliable)
 	void NM_Minion_Attack();
 
 public:	//체력관련
 	FTimerHandle HPbarColorTimerHandle;
 	
-	UFUNCTION(NetMulticast, Reliable)
-	void SetHpPercentage(float Health, float MaxHealth);
-	UFUNCTION(Server, Reliable)
-	void S_SetHpPercentage(float Health, float MaxHealth);
 	void StartSetHPbarColor();
 	void SetHPbarColor(FLinearColor HealthBarColor);
 

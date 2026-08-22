@@ -28,8 +28,6 @@ AChar_Wraith::AChar_Wraith()
 	TrajectorySpline = CreateDefaultSubobject<USplineComponent>(TEXT("TrajectorySpline"));
 	TrajectorySpline->SetupAttachment(RootComponent);
 	TrajectorySpline->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-
-	bIsSetForward = false;
 }
 
 void AChar_Wraith::BeginPlay()
