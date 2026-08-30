@@ -6,6 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Character/Shinbi/Wolf/Wolf.h"
 #include "Components/DecalComponent.h"
+#include "GAS/WAbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -20,11 +21,6 @@ void UGA_Shinbi_QSkill::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		K2_EndAbility();
 		return;
 	}
-
-	AActor* Avatar = GetAvatarActorFromActorInfo();
-	if (!Avatar) return;
-	
-	Player = Cast<AWCharacterBase>(Avatar);
 
 	if (ActorInfo->IsLocallyControlled())
 	{
@@ -51,16 +47,16 @@ void UGA_Shinbi_QSkill::SpawnDashWolf(FGameplayEventData Data)
 {
 	if (K2_HasAuthority())
 	{
-		FVector OwnerCharacterLocation = Player->GetActorLocation();
-		FRotator OwnerCharacterRotation = Player->GetActorRotation();
-		FVector ForwardVector = Player->GetActorForwardVector();
+		FVector OwnerCharacterLocation = Avatar->GetActorLocation();
+		FRotator OwnerCharacterRotation = Avatar->GetActorRotation();
+		FVector ForwardVector = Avatar->GetActorForwardVector();
 
 		float SpawDistance = 100.f;
 		FVector SpawnLocation = OwnerCharacterLocation + (ForwardVector * SpawDistance);
 
 		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = Player;
-		SpawnParams.Instigator = Cast<APawn>(Player);
+		SpawnParams.Owner = Avatar;
+		SpawnParams.Instigator = Cast<APawn>(Avatar);
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 		AWolf* Wolf = GetWorld()->SpawnActor<AWolf>(
@@ -72,11 +68,10 @@ void UGA_Shinbi_QSkill::SpawnDashWolf(FGameplayEventData Data)
 
 		if (Wolf)
 		{
-			Wolf->LaunchWolf(Player);
+			Wolf->LaunchWolf(Avatar);
 		}
 	}
 
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC) ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
 }
 
@@ -84,18 +79,17 @@ void UGA_Shinbi_QSkill::OnInputReleased(float TimeHeld)
 {
 	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(GetAvatarActorFromActorInfo()))
 	{
-		CharInterface->RequestSnapToCameraDirection();
+		CharInterface->RequestSnapToCameraDirection(20.f);
 	}
 	
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC) ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
 	
 	const FGameplayAbilityActivationInfo ActivationInfo = GetCurrentActivationInfo();
 	
-	if (Player->SkillForwardDecal)
+	if (Avatar->SkillForwardDecal)
 	{
-		Player->SkillForwardDecal->DestroyComponent();
-		Player->SkillForwardDecal = nullptr;
+		Avatar->SkillForwardDecal->DestroyComponent();
+		Avatar->SkillForwardDecal = nullptr;
 	}
 	
 	if (KeydownTask)
@@ -106,7 +100,6 @@ void UGA_Shinbi_QSkill::OnInputReleased(float TimeHeld)
 	
 	if (HasAuthorityOrPredictionKey(GetCurrentActorInfo(), &ActivationInfo))
 	{
-		AActor* Avatar = GetAvatarActorFromActorInfo();
 		if (Avatar)
 		{
 			AWCharacterBase* PlayerAvatar = Cast<AWCharacterBase>(Avatar);
@@ -142,10 +135,10 @@ FGameplayTag UGA_Shinbi_QSkill::GetQSkillSpawnWolfEventTag()
 
 void UGA_Shinbi_QSkill::SpawnDashRangeDecal()
 {	
-	if (!Player) return;
+	if (!Avatar) return;
 
-	FVector SpawnLocation = Player->GetActorLocation() + Player->GetActorForwardVector() * 700.f;
-	FRotator SpawnRotation = Player->GetActorRotation();
+	FVector SpawnLocation = Avatar->GetActorLocation() + Avatar->GetActorForwardVector() * 700.f;
+	FRotator SpawnRotation = Avatar->GetActorRotation();
 
 	SpawnRotation.Pitch -= 90.f;
 	SpawnRotation.Yaw -= 90.f;
@@ -160,7 +153,7 @@ void UGA_Shinbi_QSkill::SpawnDashRangeDecal()
 
 	if (SpawnedDecal)
 	{
-		Player->SkillForwardDecal = SpawnedDecal;
+		Avatar->SkillForwardDecal = SpawnedDecal;
 	}
 }
 
@@ -184,9 +177,11 @@ void UGA_Shinbi_QSkill::ApplyCooldown()
 void UGA_Shinbi_QSkill::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
                                    const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.charging"));
-	ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
+	if (ASC)
+	{
+		ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.charging"));
+		ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
+	}
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -195,10 +190,10 @@ void UGA_Shinbi_QSkill::CancelAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateCancelAbility)
 {
-	if (Player->SkillForwardDecal)
+	if (Avatar->SkillForwardDecal)
 	{
-		Player->SkillForwardDecal->DestroyComponent();
-		Player->SkillForwardDecal = nullptr;
+		Avatar->SkillForwardDecal->DestroyComponent();
+		Avatar->SkillForwardDecal = nullptr;
 	}
 
 	K2_EndAbility();

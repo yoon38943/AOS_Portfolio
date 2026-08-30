@@ -88,7 +88,6 @@ void AWolf::Explosion(const FVector& ImpactLocation)
 
 	for (const auto& Overlap : Overlaps)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Overlap.GetActor()->GetName());
 		AActor* HitActor = Overlap.GetActor();
 		if (!HitActor) continue;
 

@@ -1,6 +1,7 @@
 #include "GAS/WGameplayAbility.h"
 
 #include "AbilitySystemComponent.h"
+#include "WAbilitySystemComponent.h"
 #include "Character/WCharacterBase.h"
 #include "Character/WCharAnimInstance.h"
 #include "PersistentGame/GamePlayerController.h"
@@ -23,17 +24,22 @@ void UWGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 	{
-		AWCharacterBase* Character = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
-		if (!Character) return;
+		ASC = Cast<UWAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
+		if (!ASC) return;
+		Avatar = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
+		if (!Avatar) return;
+
+		FGameplayTagContainer CancelTags;
+		CancelTags.AddTag(FGameplayTag::RequestGameplayTag(FName("ability.state.recall")));
+		ASC->CancelAbilities(&CancelTags, nullptr, this);
 	}
 
 	if (K2_HasAuthority())
-	{
-		UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-		
+	{		
 		FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
 		if (!ContextHandle.IsValid()) return;
-		
+
+		if (!CombatEffectClass) return;
 		FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(CombatEffectClass, 1.f, ContextHandle);
 		if (!SpecHandle.IsValid()) return;
 

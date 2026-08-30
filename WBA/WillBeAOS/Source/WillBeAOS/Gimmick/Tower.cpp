@@ -71,47 +71,12 @@ UAbilitySystemComponent* ATower::GetAbilitySystemComponent() const
 	return WAbilitySystemComponent;
 }
 
-void ATower::InitHPPercentage(float Health, float MaxHealth)
-{
-	UE_LOG(LogTemp, Warning, TEXT("%f, %f"), CombatComp->Health, CombatComp->Max_Health);
-	auto Widget = Cast<UHealthBar>(WidgetComponent->GetWidget());
-
-	if (Widget != nullptr)
-	{
-		if (MaxHealth != 0)
-			Widget->HealthBar->SetPercent(Health / MaxHealth);
-	}
-}
-
-void ATower::S_InitHPPercentage_Implementation()
-{
-	if (CombatComp->Health != 0)
-	{
-		InitHPPercentage(CombatComp->Health, CombatComp->Max_Health);
-	}
-	else
-	{
-		FTimerHandle HPPercentage;
-		GetWorld()->GetTimerManager().SetTimer(HPPercentage, this, &ThisClass::S_InitHPPercentage, 0.1f, false);
-	}
-}
-
-void ATower::C_InitHPPercentage_Implementation(float Health, float MaxHealth)
-{
-	UE_LOG(LogTemp, Warning, TEXT("%f, %f"), CombatComp->Health, CombatComp->Max_Health);
-	auto Widget = Cast<UHealthBar>(WidgetComponent->GetWidget());
-
-	if (Widget != nullptr)
-	{
-		if (MaxHealth != 0)
-			Widget->HealthBar->SetPercent(Health / MaxHealth);
-	}
-}
-
 void ATower::BeginPlay()
 {
 	Super::BeginPlay();
 
+	WAbilitySystemComponent->InitAbilityActorInfo(this, this);
+	
 	if (HasAuthority())
 	{
 		APlayGameState* GS = Cast<APlayGameState>(GetWorld()->GetGameState());
@@ -119,11 +84,19 @@ void ATower::BeginPlay()
 		{
 			GS->GameManagedActors.AddUnique(this);
 		}
+
+		WAbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, ActorName);
+		WAbilitySystemComponent->ApplyInitialEffects(InitialEffects);
+
+		S_SetHPbarColor();
 	}
 	else
 	{
-		//S_InitHPPercentage();
-		InitHPPercentage(CombatComp->Health, CombatComp->Max_Health);
+		UHealthBar* HpInfoBar = Cast<UHealthBar>(WidgetComponent->GetWidget());
+		if (HpInfoBar)
+		{
+			HpInfoBar->SetAndBoundToGameplayAttribute(WAbilitySystemComponent, UWAttributeSet::GetHealthAttribute(), UWAttributeSet::GetMaxHealthAttribute());
+		}
 	}
 
 	SetTeamCollision();
@@ -169,6 +142,10 @@ void ATower::Tick(float DeltaTime)
 
 			if (Projectile)
 			{
+				bool bFound;
+				float Value =  WAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetAttackStatAttribute(), bFound);
+				if (bFound) Projectile->ProjectileAttackStat = Value;
+				Projectile->Target = TargetOfActors;
 				Projectile->SetHomingTarget();
 			}
 		}
@@ -221,55 +198,13 @@ void ATower::BeamToTarget(FVector TargetLocation, AAOSCharacter* Target)
 	NiagaraComponent->SetVisibility(true);
 }
 
-float ATower::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
-{
-	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-
-	if (!HasAuthority()) return false;
-
-	LastHitBy = EventInstigator;
-	
-	float TakeDamage = DamageAmount;
-	if (CombatComp != nullptr)
-	{
-		CombatComp->HandleTakeDamage(TakeDamage);
-
-		S_SetHpPercentage((CombatComp->Health), (CombatComp->Max_Health));
-
-		// 타워의 HP가 일정 이하로 떨어지면 데미지 받은 메쉬로 바꾸고 파티클 생성
-		if (CombatComp->Health <= (CombatComp->Max_Health / 2) && !IsParticleSpawned)
-		{
-			S_SetDamaged();
-			
-			IsParticleSpawned = true;
-
-			AddGoldToEnemyPlayer();
-		}
-
-		if (CombatComp->GetIsDead())
-		{
-			AddGoldToEnemyPlayer();
-
-			APlayGameState* GS = Cast<APlayGameState>(GetWorld()->GetGameState());
-			if (GS)
-			{
-				GS->GameManagedActors.Remove(this);
-			}
-			
-			TowerDestroyInClient();
-		}
-	}
-
-	return DamageAmount;
-}
-
 void ATower::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (!HasAuthority()) return;
 	
 	AAOSCharacter* PlayChar = Cast<AAOSCharacter>(OtherActor);
-	if ((PlayChar && PlayChar->TeamID != TeamID))
+	if (PlayChar && PlayChar->TeamID != TeamID)
 	{
 		// 적군 타겟 배열 등록
 		OverlappingActors.AddUnique(PlayChar);
@@ -315,20 +250,6 @@ void ATower::TowerDestroyInClient_Implementation()
 	Destroy();
 }
 
-void ATower::Server_UpdateHPBar_Implementation()
-{
-	float HPPercent = CombatComp->Health / CombatComp->Max_Health;
-	Client_UpdateWidget(HPPercent);
-}
-
-void ATower::Client_UpdateWidget_Implementation(float HPPercent)
-{
-	if (UHealthBar* HPBar = Cast<UHealthBar>(WidgetComponent->GetWidget()))
-	{
-		HPBar->HealthBar->SetPercent(HPPercent);
-	}
-}
-
 void ATower::spawn()
 {
 	FActorSpawnParameters SpawnParams;
@@ -349,22 +270,6 @@ void ATower::SetTeamCollision()
 
 void ATower::DamagedParticle_Implementation()
 {
-}
-
-void ATower::S_SetHpPercentage_Implementation(float Health, float MaxHealth)
-{
-	SetHpPercentage(Health, MaxHealth);
-}
-
-void ATower::SetHpPercentage_Implementation(float Health, float MaxHealth)
-{
-	auto Widget = Cast<UHealthBar>(WidgetComponent->GetWidget());
-
-	if (Widget != nullptr)
-	{
-		if (MaxHealth != 0)
-			Widget->HealthBar->SetPercent(Health / MaxHealth);
-	}
 }
 
 void ATower::S_SetHPbarColor_Implementation()

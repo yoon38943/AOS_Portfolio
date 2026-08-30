@@ -71,6 +71,14 @@ void AWCharacterBase::InitialAbilitySystem()
 
 	AbilitySystemComponent->InitAbilityActorInfo(GamePlayerState, this);
 
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	{
+		if (UWCharAnimInstance* MainAnim = Cast<UWCharAnimInstance>(AnimInstance))
+		{
+			MainAnim->OnUpdatedASC();
+		}
+	}
+
 	if (!HasAuthority())
 	{
 		ConfigureOverHeadHealthWidget();
@@ -102,7 +110,7 @@ void AWCharacterBase::OnRep_PlayerState()
 	Super::OnRep_PlayerState();
 
 	InitialAbilitySystem();
-
+	RegisterTagEvent();
 }
 
 void AWCharacterBase::RegisterTagEvent()
@@ -110,11 +118,39 @@ void AWCharacterBase::RegisterTagEvent()
 	AbilitySystemComponent->RegisterGameplayTagEvent(
 		FGameplayTag::RequestGameplayTag("state.combat"),
 		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AWCharacterBase::OnCombatTagChanged);
+
+	AbilitySystemComponent->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag(FName("ability.state.recall")),
+		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AWCharacterBase::OnRecallTagChanged);
 }
 
 void AWCharacterBase::OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
 	bIsCombat = (NewCount > 0);
+
+	if (NewCount > 0)
+	{
+		GetMesh()->LinkAnimClassLayers(Combat_Layer);
+	}
+	else
+	{
+		if (!AbilitySystemComponent->HasAnyMatchingGameplayTags(MaintainCombatTags))
+		{
+			GetMesh()->LinkAnimClassLayers(NonCombat_Layer);
+		}
+	}
+}
+
+void AWCharacterBase::OnRecallTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount > 0)
+	{
+		GetWorld()->GetTimerManager().SetTimer(RecallZoomTimer, this, &ThisClass::UpdateRecallZoom, 0.01f, true);
+	}
+	else
+	{
+		GetWorld()->GetTimerManager().SetTimer(RecallZoomTimer, this, &ThisClass::UpdateRecallZoom, 0.01f, true);		
+	}
 }
 
 void AWCharacterBase::HandleAbilityInputPressed(const FInputActionValue& Value, EWAbilityInputID InputID)
@@ -250,9 +286,9 @@ void AWCharacterBase::SetTeamCollision()
 	}
 }
 
-void AWCharacterBase::RequestSnapToCameraDirection()
+void AWCharacterBase::RequestSnapToCameraDirection(float SnapDirection)
 {
-	if (Anim && FMath::Abs(Anim->RootYawOffset) > 20.f)
+	if (Anim && FMath::Abs(Anim->RootYawOffset) > SnapDirection)
 	{
 		Anim->bIsTurning = false;
 		Anim->bShouldResetRootYawOffset = true;
@@ -347,8 +383,8 @@ void AWCharacterBase::Look(const FInputActionValue& Value)
 
 	if (Controller != nullptr)
 	{
-		AddControllerYawInput(LookAxisVector.X);
-		AddControllerPitchInput(LookAxisVector.Y);
+		AddControllerYawInput(LookAxisVector.X * MouseSensitivityMultiply);
+		AddControllerPitchInput(LookAxisVector.Y * MouseSensitivityMultiply);
 	}
 }
 
@@ -490,6 +526,25 @@ void AWCharacterBase::Server_EnterCombat_Implementation()
 	ServerChangeCombatMode(IsCombat);
 }
 
+void AWCharacterBase::UpdateRecallZoom()
+{
+	if (IsLocallyControlled())
+	{
+		float TargetFOV = IsRecalling ? 60.f : 90.f;
+		float InterpSpeed = IsRecalling ? 0.4f : 15.f;
+		float CurrentFOV = FollowCamera->FieldOfView;
+		float NewFOV = FMath::FInterpTo(CurrentFOV, TargetFOV, GetWorld()->DeltaTimeSeconds, InterpSpeed);
+
+		FollowCamera->SetFieldOfView(NewFOV);
+
+		if (FMath::Abs(NewFOV - TargetFOV) <= 0.1f)
+		{
+			FollowCamera->SetFieldOfView(TargetFOV);
+			GetWorld()->GetTimerManager().ClearTimer(RecallZoomTimer);
+		}
+	}
+}
+
 void AWCharacterBase::ServerExitCombat()
 {
 	IsCombat = false;
@@ -559,11 +614,6 @@ void AWCharacterBase::RecallAbilityInputPressed(const FInputActionValue& Value,
 		ASC->TryActivateAbilityByClass(AbilityClass);
 	}
 }
-
-/*void AWCharacterBase::ServerPlayMontage_Implementation(UAnimMontage* Montage)
-{
-	MultiPlayMontage(Montage);
-}*/
 
 void AWCharacterBase::MultiPlayMontage_Implementation(UAnimMontage* Montage)
 {
@@ -767,6 +817,5 @@ void AWCharacterBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>
 
 	DOREPLIFETIME(ThisClass, CharacterDamage);
 	DOREPLIFETIME(ThisClass, IsCombat);
-	DOREPLIFETIME(ThisClass, bIsQSkillUsing);
-	DOREPLIFETIME(ThisClass, bIsESkillUsing);
+	DOREPLIFETIME(ThisClass, IsRecalling);
 }

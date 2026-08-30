@@ -53,10 +53,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TSubclassOf<UGameplayEffect> InitStatEffect;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Stat")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TObjectPtr<UDataTable> StatTable;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Effects")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
 
 public:

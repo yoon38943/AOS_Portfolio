@@ -16,5 +16,5 @@ class WILLBEAOS_API IInterface_CharacterAction
 	GENERATED_BODY()
 
 public:
-	virtual void RequestSnapToCameraDirection() = 0;
+	virtual void RequestSnapToCameraDirection(float SnapDirection) = 0;
 };

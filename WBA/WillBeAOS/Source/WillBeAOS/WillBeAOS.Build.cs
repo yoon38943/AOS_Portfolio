@@ -22,7 +22,7 @@ public class WillBeAOS : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"AIModule", "NavigationSystem", "AnimGraphRuntime", "AsyncLoadingScreen",
-			"GameplayAbilities", "GameplayTasks", "GameplayTags"
+			"GameplayAbilities", "GameplayTasks", "GameplayTags", "AnimNextAnimGraph", "AnimGraphRuntime"
 		});
 		
 		if (Target.Type == TargetType.Server && Target.Platform == UnrealTargetPlatform.Linux)

@@ -14,11 +14,14 @@ class WILLBEAOS_API UWraith_AnimInstance : public UWCharAnimInstance
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeBeginPlay() override;
 
+	virtual void OnUpdatedASC() override;
+
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|ShootingMode")
 	FGameplayTag CurrentShootingModeTag;
 
-	virtual FGameplayTag GetCurrentShootingModeTag() const override { return CurrentShootingModeTag; }
+	UFUNCTION(BlueprintCallable, Category = "ShootingMode")
+	FGameplayTag GetCurrentShootingModeTag() const { return CurrentShootingModeTag; }
 
 
 	// AimOffset

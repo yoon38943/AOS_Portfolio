@@ -19,9 +19,6 @@ private:
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UGameplayEffect> RecastCooldownEffect;
 	
-	UPROPERTY()
-	AWCharacterBase* PlayerChar;
-	
 	int32 MaxDashStacks = 3;
 	int32 CurrentDashStacks = 0;
 

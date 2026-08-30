@@ -8,6 +8,7 @@
 #include "Interface/VisibleSightInterface.h"
 #include "Struct_Enum/WalkSpeedStruct.h"
 #include "AbilitySystemInterface.h"
+#include "GameplayTagContainer.h"
 #include "GAS/UWGameplayAbilityTypes.h"
 #include "Interface/Interface_CharacterAction.h"
 #include "WCharacterBase.generated.h"
@@ -44,9 +45,17 @@ public:
 
 
 	bool bIsCombat;
-	void RegisterTagEvent();
+	
+	virtual void RegisterTagEvent();
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	FGameplayTagContainer MaintainCombatTags; 
+	
 	UFUNCTION()
 	void OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	UFUNCTION()
+	void OnRecallTagChanged(const FGameplayTag Tag, int32 NewCount);
 	
 protected:
 	//컴포넌트
@@ -69,7 +78,7 @@ public:
 	
 	void SetTeamCollision();
 	
-	virtual void RequestSnapToCameraDirection() override;
+	virtual void RequestSnapToCameraDirection(float SnapDirection) override;
 	
 
 public:
@@ -137,23 +146,23 @@ public:
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-private:
+protected:
 	UPROPERTY()
 	UWAbilitySystemComponent* AbilitySystemComponent;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Effects")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TSubclassOf<UGameplayEffect> InitStatEffect;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Stat")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TObjectPtr<UDataTable> StatTable;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Effects")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Abilities")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TMap<EWAbilityInputID, TSubclassOf<UGameplayAbility>> Abilities;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Abilities")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TMap<EWAbilityInputID, TSubclassOf<UGameplayAbility>> BasicAbilities;
 
 public:
@@ -187,6 +196,7 @@ public:
 	virtual void StopMove(const FInputActionValue& Value);
 	void VisibleOutline();
 
+	float MouseSensitivityMultiply = 1.f;
 	FMovementSpeedStruct MovementSpeedData;
 	
 	UFUNCTION(BlueprintCallable)
@@ -197,8 +207,13 @@ public:
 	void Server_SetControlRotationYaw(FRotator YawRotation);
 	
 	// ---- 귀환 관련 함수 ----
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recall")
-	TObjectPtr<UParticleSystem> RecallParticle;
+	UPROPERTY(Replicated)
+	bool IsRecalling;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Recall")
+	FGameplayTag RecallCueTag;
+
+	FGameplayTag GetRecallCueTag() const { return RecallCueTag; }
 
 	void RecallAbilityInputPressed(const FInputActionValue& Value, TSubclassOf<UGameplayAbility> AbilityClass);
 
@@ -212,6 +227,9 @@ public:
 	
 	UFUNCTION(NetMulticast, Reliable)
 	void MultiPlayMontage(UAnimMontage* Montage);
+
+	FTimerHandle RecallZoomTimer;
+	void UpdateRecallZoom();
 
 	// ---- 타겟 관리 함수 ----
 	UPROPERTY()
@@ -240,10 +258,10 @@ public:
 
 	// ----- 스킬 이벤트 관련 -----
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_QSkillUsing)
-	bool bIsQSkillUsing = false;
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsRMSkillUsing = false;
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ESkillUsing)
-	bool bIsESkillUsing = false;
+	bool bIsQSkillUsing = false;
 
 	UFUNCTION()
 	virtual void OnRep_QSkillUsing();
@@ -255,6 +273,12 @@ public:
 	void Input_RSkill(const FInputActionValue& Value);
 	
 	virtual void Handle_UseSkillButton(ESkillSlot Skillslot);
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TSubclassOf<UAnimInstance> NonCombat_Layer;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TSubclassOf<UAnimInstance> Combat_Layer;
 	
 	// PlayerState에게 요청 함수
 	virtual void ActivateSkill_Implementation(ESkillSlot SkillSlot) override;

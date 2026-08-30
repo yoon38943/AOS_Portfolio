@@ -15,6 +15,8 @@ void UWCharAnimInstance::RegisterTagEvent()
 	OwnerASC->RegisterGameplayTagEvent(
 		FGameplayTag::RequestGameplayTag("state.combat"),
 		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &UWCharAnimInstance::OnCombatTagChanged);
+
+	BindCheckRecallTag();
 }
 
 void UWCharAnimInstance::OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount)
@@ -82,7 +84,7 @@ void UWCharAnimInstance::SetRootYawOffset(float InRootYawOffest)
 
 void UWCharAnimInstance::TurnInPlace(float DeltaTime)
 {
-	if ((FMath::Abs(RootYawOffset) > 50.f && !WIsAccelerating) && !bSetForward)
+	if (FMath::Abs(RootYawOffset) > 50.f && !WIsAccelerating && !bSetForward)
 	{
 		CurrentTurnDelayTime += DeltaTime;
 		if (CurrentTurnDelayTime > TurnDelayThreshold)
@@ -238,6 +240,8 @@ void UWCharAnimInstance::CaculateLocomotionDirection()
 		break;
 	}
 
+	if (UKismetMathLibrary::VSizeXY(Velocity2D) < 5.f) return;
+
 	// Setup LocomotionDirection
 	if (VelocityLocomotionAngle < -130.f || VelocityLocomotionAngle > 130.f)
 	{
@@ -311,6 +315,38 @@ void UWCharAnimInstance::ResetRootYawOffset(float DeltaTime)
 void UWCharAnimInstance::UpdateAimPitch()
 {
 	AimPitch = UKismetMathLibrary::NormalizeAxis(CachedAimPitch);
+}
+
+void UWCharAnimInstance::BindCheckRecallTag()
+{
+	if (OwnerASC)
+	{
+		FGameplayTag RecallTag = FGameplayTag::RequestGameplayTag(FName("ability.state.recall"));
+		
+		OwnerASC->RegisterGameplayTagEvent(RecallTag, EGameplayTagEventType::NewOrRemoved)
+		   .AddUObject(this, &ThisClass::OnRecallTagChanged);
+
+		bIsRecalling = OwnerASC->HasMatchingGameplayTag(RecallTag);
+	}
+}
+
+void UWCharAnimInstance::OnRecallTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
+{
+	bIsRecalling = NewCount > 0;
+}
+
+void UWCharAnimInstance::UpdateSkillLoopingParts(UAnimationAsset* NewLoopingAnimation)
+{
+	ActivateSkillLoopingParts = NewLoopingAnimation;
+
+	if (NewLoopingAnimation)
+	{
+		bIsValidLoopingPart = true;
+	}
+	else
+	{
+		bIsValidLoopingPart = false;
+	}
 }
 
 void UWCharAnimInstance::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const

@@ -8,6 +8,7 @@
 #include "UI/SkillIconWidget.h"
 #include "WCharacterHUD.generated.h"
 
+class APlayGameState;
 class UTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillCooldownSignature, FSkillUsedInfo, UsedSkillInfo);
@@ -38,9 +39,9 @@ public:
 	FTimerHandle ErrorTimerHandle;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Character")
-	class AWCharacterBase* AWC;//캐릭터 받아오는 함수
+	class AWCharacterBase* AWC;	//캐릭터 받아오는 함수
 	UPROPERTY(BlueprintReadOnly, Category = "GameState")
-	APlayGameState* AWGS;//게임스테이트
+	APlayGameState* AWGS;	//게임스테이트
 	UPROPERTY(BlueprintReadOnly, Category = "PlayerState")
 	AGamePlayerState* AWPS;
 

@@ -88,6 +88,8 @@ void ANexus::BeginPlay()
 {
 	Super::BeginPlay();
 
+	WAbilitySystemComponent->InitAbilityActorInfo(this, this);
+
 	if (HasAuthority())
 	{
 		APlayGameState* GS = Cast<APlayGameState>(GetWorld()->GetGameState());
@@ -95,6 +97,9 @@ void ANexus::BeginPlay()
 		{
 			GS->GameManagedActors.AddUnique(this);
 		}
+
+		WAbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, ActorName);
+		WAbilitySystemComponent->ApplyInitialEffects(InitialEffects);
 	}
 
 	SetTeamCollision();
@@ -111,37 +116,10 @@ void ANexus::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 }
 
-float ANexus::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
-{
-	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-
-	if (HasAuthority())
-	{
-		float TakeDamage = DamageAmount;
-		
-		if (CombatComp != nullptr)
-		{
-			CombatComp->HandleTakeDamage(TakeDamage);
-
-			if (CombatComp->GetIsDead())
-			{
-				APlayGameMode* GM = Cast<APlayGameMode>(GetWorld()->GetAuthGameMode());
-				if (GM)
-				{
-					GM->OnNexusDestroyed(TeamID);
-				}
-
-				DestroyNexus();
-			}
-		}
-
-		return DamageAmount;
-	}
-
-	return 0;
-}
-
 float ANexus::GetNexusHPPercent()
 {
-	return CombatComp->Health/CombatComp->Max_Health;
+	bool bFound;
+	float Health = WAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetHealthAttribute(), bFound);
+	float MaxHealth = WAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetMaxHealthAttribute(), bFound);
+	return Health / MaxHealth;
 }

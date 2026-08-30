@@ -35,7 +35,7 @@ void ABulletTargetActor::ConfirmTargetingAndContinue()
 	PC->DeprojectScreenPositionToWorld(ScreenCenter.X, ScreenCenter.Y, ScreenLocation, ScreenDirection);
 
 	FVector TraceStart = ScreenLocation;
-	FVector TraceEnd = TraceStart + ScreenDirection * (NormalAttackDistance + Avatar->GetCameraBoom()->TargetArmLength);
+	FVector TraceEnd = TraceStart + ScreenDirection * (AttackDistance + Avatar->GetCameraBoom()->TargetArmLength);
 
 	FBulletTargetData* NewData = new FBulletTargetData();
 	NewData->TraceStart = TraceStart;

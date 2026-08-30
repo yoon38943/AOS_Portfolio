@@ -5,16 +5,15 @@
 #include "PersistentGame/PlayGameState.h"
 #include "Character/Skill/SkillDataTable.h"
 #include "Character/Struct_Enum/WalkSpeedStruct.h"
-#include "Enum/ShootingMode.h"
 #include "Char_Wraith.generated.h"
 
 
-class ABomb_ESkill;
+class ABomb_QSkill;
 class USplineMeshComponent;
 class USplineComponent;
 struct FPredictProjectilePathPointData;
 class AProjectile_Normal;
-class AProjectile_QSkill;
+class AProjectile_RMSkill;
 enum class ShootingMode : uint8;
 
 UCLASS()
@@ -26,10 +25,20 @@ public:
 	AChar_Wraith();
 
 protected:
+	UPROPERTY()
 	APlayGameState* GS;
 
 	UPROPERTY(EditDefaultsOnly, Category = "HitParticle")
 	UParticleSystem* HitParticle;
+
+	virtual void RegisterTagEvent() override;
+
+	UFUNCTION()
+	void OnSinperTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	UFUNCTION()
+	void OnBombTagChanged(const FGameplayTag Tag, int32 NewCount);
+
 
 protected:
 	virtual void BeginPlay() override;
@@ -38,29 +47,29 @@ protected:
 	
 	virtual void StopMove(const FInputActionValue& Value) override;
 
+	void CheckTargeting();
+	bool bDoOnceBindASC = true;
+
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AProjectile_Normal> Projectile_Normal;
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<AProjectile_QSkill> Projectile_QSkill;
+	TSubclassOf<AProjectile_RMSkill> Projectile_QSkill;
 
-public:	
+public:
+	UPROPERTY()
 	AActor* LastTarget;
 	// 타겟팅 관련
 	TOptional<FHitResult> CheckTargettingInCenter();
 
 	UPROPERTY(Replicated)
-	float TargettingTraceLength = 1200.f;
+	float AttackDistance = 1200;
 
 	float NormalAttackDistance = 1200.f;
-	float QSkillDistance = 1500.f;
+	float SniperSkillDistance = 1500.f;
 
 	// 공격
 	bool CanAttack = true;
-
-	/*virtual void Attack() override;
-
-	virtual void ClientAttack() override;
-	virtual void Behavior() override;*/
+	
 	void PlayNormalAttackAnim();
 
 	float BulletSpeed = 12000.f;
@@ -68,8 +77,7 @@ public:
 	bool bIsStriking = false;
 	
 	void AttackFire(FVector TraceEnd);
-
-	void CaculatedBulletDirection(FVector Point, bool isStriking, bool isSkill);
+	
 
 	float LastAttackTime = 0.f;
 	float AttackCountTime = 0.73f;
@@ -92,6 +100,12 @@ public:
 	virtual void ActivateSkill_Implementation(ESkillSlot SkillSlot) override;
 	
 	virtual void Handle_UseSkillButton(ESkillSlot Skillslot) override;	// 스킬 input switch 함수
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TSubclassOf<UAnimInstance> Sniper_Layer;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TSubclassOf<UAnimInstance> Bomb_Layer;
 	
 	// Q스킬
 	UPROPERTY(EditAnywhere)
@@ -111,21 +125,8 @@ public:
 
 	void ZoomInScope();
 	void ZoomOutScope();
-	UFUNCTION(Server, Reliable)
-	void SetZoomInBool(bool bZoomIn);
 	void UpdateZoom();
 	void SkillQAttack();
-	void ClientQSkill();
-	virtual void OnRep_QSkillUsing() override;
-	
-	UFUNCTION(Server, Reliable)
-	void S_SkillQAttack(FVector TraceStart, FVector TraceEnd, FVector MuzzleLocation);
-	void ServerLineTraceQSkill(FVector TraceStart, FVector TraceEnd, FVector MuzzleLocation);
-
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_QSkill(FVector Point, bool isStriking);
-
-	void PlayQSKillAnim();
 
 	// E스킬
 	UPROPERTY(EditAnywhere)
@@ -142,7 +143,7 @@ public:
 	TArray<USplineMeshComponent*> SplineMeshes;
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AActor> Bomb_ESkillClass;
-	TMap<int64, TWeakObjectPtr<ABomb_ESkill>> FakeBombs;
+	TMap<int64, TWeakObjectPtr<ABomb_QSkill>> FakeBombs;
 
 	
 	float ESkillCooldownTime;

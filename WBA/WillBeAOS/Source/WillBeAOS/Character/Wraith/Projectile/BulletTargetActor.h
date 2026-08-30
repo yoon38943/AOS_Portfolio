@@ -20,5 +20,5 @@ public:
 	UPROPERTY()
 	AWCharacterBase* Avatar;
 	
-	float NormalAttackDistance = 1200.f;
+	float AttackDistance = 0.f;
 };

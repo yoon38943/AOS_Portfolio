@@ -72,8 +72,6 @@ void AWMinionsCharacterBase::BeginPlay()
 	Super::BeginPlay();
 
 	WAbilitySystemComponent->InitAbilityActorInfo(this, this);
-	WAbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, CharacterName);
-	WAbilitySystemComponent->ApplyInitialEffects(InitialEffects);
 	
 	CombatComponent->DelegateDead.BindUObject(this, &ThisClass::Dead);
 
@@ -93,6 +91,9 @@ void AWMinionsCharacterBase::BeginPlay()
 		{
 			GS->GameManagedActors.AddUnique(this);
 		}
+
+		WAbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, CharacterName);
+		WAbilitySystemComponent->ApplyInitialEffects(InitialEffects);
 		
 		GetWorld()->GetTimerManager().SetTimer(
 			CheckDistanceTimerHandle,

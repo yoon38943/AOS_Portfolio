@@ -4,6 +4,9 @@
 #include "Abilities/GameplayAbility.h"
 #include "WGameplayAbility.generated.h"
 
+class AWCharacterBase;
+class UWAbilitySystemComponent;
+
 UCLASS()
 class WILLBEAOS_API UWGameplayAbility : public UGameplayAbility
 {
@@ -12,6 +15,12 @@ class WILLBEAOS_API UWGameplayAbility : public UGameplayAbility
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Ability")
 	TSubclassOf<UGameplayEffect> CombatEffectClass;
+
+	UPROPERTY()
+	TObjectPtr<UWAbilitySystemComponent> ASC;
+
+	UPROPERTY()
+	TObjectPtr<AWCharacterBase> Avatar;
 	
 	class UAnimInstance* GetOwnerAnimInstance() const;
 

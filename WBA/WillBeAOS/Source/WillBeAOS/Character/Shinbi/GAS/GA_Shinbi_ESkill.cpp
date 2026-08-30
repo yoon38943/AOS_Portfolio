@@ -23,8 +23,7 @@ void UGA_Shinbi_ESkill::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		K2_EndAbility();
 		return;
 	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	
 	if (ASC)
 	{		
 		ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
@@ -67,7 +66,6 @@ void UGA_Shinbi_ESkill::SpawnCircleWolves(FGameplayEventData Data)
 {
 	if (K2_HasAuthority())
 	{
-		AActor* Avatar = GetAvatarActorFromActorInfo();
 		if (!Avatar) return;
 
 		int32 WolfCount = 5;
@@ -105,8 +103,7 @@ void UGA_Shinbi_ESkill::SpawnCircleWolves(FGameplayEventData Data)
 
 	ApplyCooldown();
 
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
+	if (ASC) ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
 }
 
 void UGA_Shinbi_ESkill::SpawnLensFlare()
@@ -154,15 +151,13 @@ void UGA_Shinbi_ESkill::EndAbility(const FGameplayAbilitySpecHandle Handle, cons
 
 	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 	{
-		UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 		if (ASC)
 		{
 			ASC->RemoveGameplayCue(GetSpawnParticleCueTags());
 		}	
 	}
 
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
+	if (ASC) ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

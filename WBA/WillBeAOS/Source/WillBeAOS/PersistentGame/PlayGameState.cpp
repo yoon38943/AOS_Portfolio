@@ -12,7 +12,7 @@
 APlayGameState::APlayGameState()
 {
 	bReplicates = true;
-	NetUpdateFrequency = 100.f;
+	SetNetUpdateFrequency(100.f);
 }
 
 void APlayGameState::SetGamePhase(EGamePhase NewGamePhase)

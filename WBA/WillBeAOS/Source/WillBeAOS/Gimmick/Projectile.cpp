@@ -1,5 +1,7 @@
 #include "Gimmick/Projectile.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Tower.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -14,6 +16,25 @@ void AProjectile::OnRep_Target()
 	{
 		ProjectileMovement->HomingTargetComponent = Target->GetRootComponent();
 	}
+}
+
+void AProjectile::ApplyDamageToTarget(AActor* HitActor)
+{
+	if (!HitActor) return;
+
+	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+	if (!SourceASC) return;
+
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
+	if (!TargetASC) return;
+
+	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(HitEffect, 1.f, EffectContext);
+	if (!SpecHandle.IsValid()) return;
+
+	SpecHandle.Data->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag("ability.data.damage"), -ProjectileAttackStat);
+
+	TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 }
 
 AProjectile::AProjectile()
@@ -48,7 +69,6 @@ void AProjectile::BeginPlay()
 
 	if (HasAuthority())
 	{
-		SetHomingTarget();
 		if (Target)
 		{
 			FVector Direction = (Target->GetActorLocation() - GetActorLocation()).GetSafeNormal();
@@ -77,29 +97,13 @@ void AProjectile::OnComponentBeginOverlap(UPrimitiveComponent* OverlappedCompone
 
 	if (Target == OtherActor)
 	{
-		UGameplayStatics::ApplyDamage(
-			Target,
-			50,
-			GetInstigatorController(),
-			this,
-			UDamageType::StaticClass()
-		);
-
+		ApplyDamageToTarget(Target);
 		Destroy();
 	}
 }
 
 void AProjectile::SetHomingTarget()
 {
-	ATower* Tower = Cast<ATower>(GetOwner());
-
-	if (!Tower)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Projectile has no valid tower owner!"));
-		return;
-	}
-	
-	Target = Tower->TargetOfActors;
 	if (!Target)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Projectile has no target!"));

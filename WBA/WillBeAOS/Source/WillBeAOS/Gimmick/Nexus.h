@@ -22,9 +22,7 @@ class WILLBEAOS_API ANexus : public AAOSActor, public IAbilitySystemInterface
 
 	UPROPERTY(EditAnywhere, Category = "GameEnd")
 	TSubclassOf<AActor> EndingCameraClass;
-	
-public:	//타격 관련
-	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
+
 	
 public: //채력 관련
 	float GetNexusHPPercent();
@@ -64,4 +62,13 @@ private:
 	UWAbilitySystemComponent* WAbilitySystemComponent;
 	UPROPERTY(VisibleDefaultsOnly, Category = "Gameplay Ability")
 	UWAttributeSet* WAttributeSet;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TObjectPtr<UDataTable> StatTable;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TSubclassOf<UGameplayEffect> InitStatEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
 };

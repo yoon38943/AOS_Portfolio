@@ -7,6 +7,7 @@
 #include "Character/Shinbi/DashHitCollision.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
+#include "GAS/WAbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -15,8 +16,6 @@ void UGA_Shinbi_RMSkill::ActivateAbility(const FGameplayAbilitySpecHandle Handle
                                          const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-	PlayerChar = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
 	
 	CurrentDashStacks = MaxDashStacks;
 
@@ -55,10 +54,9 @@ void UGA_Shinbi_RMSkill::StartDash()
 {
 	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(GetAvatarActorFromActorInfo()))
 	{
-		CharInterface->RequestSnapToCameraDirection();
+		CharInterface->RequestSnapToCameraDirection(0.f);
 	}
 	
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC)
 	{
 		ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
@@ -71,7 +69,7 @@ void UGA_Shinbi_RMSkill::StartDash()
 
 	UGameplayStatics::SpawnEmitterAttached(
 		Dash_Camera_Particle,
-		PlayerChar->GetFollowCamera(),
+		Avatar->GetFollowCamera(),
 		NAME_None,
 		FVector(70.f, 0.f, 0.f),
 		FRotator::ZeroRotator,
@@ -79,8 +77,6 @@ void UGA_Shinbi_RMSkill::StartDash()
 	);
 	
 	PlayDashAnimation();
-	
-	ACharacter* Avatar = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 
 	UCapsuleComponent* Collision = Avatar->GetCapsuleComponent();
 	if (Collision)
@@ -122,7 +118,6 @@ void UGA_Shinbi_RMSkill::StartDash()
 
 void UGA_Shinbi_RMSkill::OnDashLanded()
 {
-	ACharacter* Avatar = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 	if (!Avatar) return;
 
 	UCapsuleComponent* Collision = Avatar->GetCapsuleComponent();
@@ -189,7 +184,6 @@ void UGA_Shinbi_RMSkill::EndDashAbility()
 	GetWorld()->GetTimerManager().ClearTimer(ReactivationTimer);
 	GetWorld()->GetTimerManager().ClearTimer(CastingTagTimer);
 
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC)
 	{
 		FGameplayTag CastingTag = FGameplayTag::RequestGameplayTag("ability.state.casting");

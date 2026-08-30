@@ -1,4 +1,4 @@
-#include "Character/Wraith/GAS/GA_Warith_BasicAttack.h"
+#include "Character/Wraith/GAS/GA_Wraith_BasicAttack.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
@@ -8,9 +8,10 @@
 #include "Character/WCharacterBase.h"
 #include "Character/Wraith/Projectile/BulletTargetActor.h"
 #include "Character/Wraith/Projectile/FBulletTargetData.h"
+#include "GAS/WAbilitySystemComponent.h"
 
 
-void UGA_Warith_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+void UGA_Wraith_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
                                              const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
                                              const FGameplayEventData* TriggerEventData)
 {
@@ -22,14 +23,21 @@ void UGA_Warith_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		return;
 	}
 
-	ASC = GetAbilitySystemComponentFromActorInfo();
-	Avatar = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
+	bool IsRecalling = ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("ability.state.recall")));
+	if (IsRecalling)
+	{
+		if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(Avatar))
+		{
+			CharInterface->RequestSnapToCameraDirection(90.f);
+		}
+	}
 
 	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 	{
 		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, BasicAttack_Montage);
 		MontageTask->OnCancelled.AddDynamic(this, &ThisClass::K2_EndAbility);
 		MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::K2_EndAbility);
+		MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::K2_EndAbility);
 		MontageTask->OnCompleted.AddDynamic(this, &ThisClass::K2_EndAbility);
 		MontageTask->ReadyForActivation();
 		
@@ -39,14 +47,14 @@ void UGA_Warith_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	}
 }
 
-void UGA_Warith_BasicAttack::EndAbility(const FGameplayAbilitySpecHandle Handle,
+void UGA_Wraith_BasicAttack::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-void UGA_Warith_BasicAttack::PerformAttack(FGameplayEventData Data)
+void UGA_Wraith_BasicAttack::PerformAttack(FGameplayEventData Data)
 {
 	if (IsLocallyControlled() || K2_HasAuthority())
 	{		
@@ -60,13 +68,18 @@ void UGA_Warith_BasicAttack::PerformAttack(FGameplayEventData Data)
 		if (TargetDataTask->BeginSpawningActor(this, ABulletTargetActor::StaticClass(), SpawnedActor))
 		{
 			// 스폰된 액터에 값 설정하고 싶으면 여기서
+			ABulletTargetActor* BulletActor = Cast<ABulletTargetActor>(SpawnedActor);
+			if (BulletActor)
+			{
+				BulletActor->AttackDistance = NormalAttackDistance;
+			}
 			TargetDataTask->FinishSpawningActor(this, SpawnedActor);
 		}
 		TargetDataTask->ReadyForActivation();
 	}
 }
 
-void UGA_Warith_BasicAttack::OnTargetDataReady(const FGameplayAbilityTargetDataHandle& Data)
+void UGA_Wraith_BasicAttack::OnTargetDataReady(const FGameplayAbilityTargetDataHandle& Data)
 {
 	if (Data.Num() == 0) return;
 	
@@ -85,6 +98,7 @@ void UGA_Warith_BasicAttack::OnTargetDataReady(const FGameplayAbilityTargetDataH
 	if (HasAuthorityOrPredictionKey(GetCurrentActorInfo(), &GetCurrentActivationInfoRef()))
 	{
 		SpawnFakeBulletCue(StrikePoint);
+		SpawnHitParticle(HitResult);
 	}
 	
 	if (K2_HasAuthority())
@@ -93,11 +107,12 @@ void UGA_Warith_BasicAttack::OnTargetDataReady(const FGameplayAbilityTargetDataH
 	}
 }
 
-void UGA_Warith_BasicAttack::LineTraceHit(FVector TraceStart, FVector TraceEnd, FHitResult& HitResult)
+void UGA_Wraith_BasicAttack::LineTraceHit(FVector TraceStart, FVector TraceEnd, FHitResult& HitResult)
 {	
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(Avatar);
 
+	if (!Avatar) return;
 	ECollisionChannel EnemyChannel;
 	if (Avatar->GetTeamID() == E_TeamID::Blue)
 		EnemyChannel = TeamCollision::RedTeam;
@@ -117,7 +132,7 @@ void UGA_Warith_BasicAttack::LineTraceHit(FVector TraceStart, FVector TraceEnd, 
 	);
 }
 
-void UGA_Warith_BasicAttack::SpawnFakeBulletCue(FVector StrikePoint)
+void UGA_Wraith_BasicAttack::SpawnFakeBulletCue(FVector StrikePoint)
 {
 	FVector MuzzleLoc = Avatar->GetMesh()->GetSocketLocation("Muzzle_01");
 	
@@ -136,7 +151,21 @@ void UGA_Warith_BasicAttack::SpawnFakeBulletCue(FVector StrikePoint)
 	ASC->ExecuteGameplayCue(GetSpawnBulletCueEventTag(), CueParams);
 }
 
-void UGA_Warith_BasicAttack::ServerApplyDamage(FHitResult HitResult)
+void UGA_Wraith_BasicAttack::SpawnHitParticle(FHitResult HitResult)
+{
+	if (!ASC) return;
+	
+	FGameplayCueParameters CueParams;
+	
+	FGameplayEffectContextHandle ParticleEffectContext = ASC->MakeEffectContext();
+	ParticleEffectContext.AddHitResult(HitResult);
+	
+	CueParams.EffectContext = ParticleEffectContext;
+	
+	ASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.hit.wraith.basicattack")), CueParams);
+}
+
+void UGA_Wraith_BasicAttack::ServerApplyDamage(FHitResult HitResult)
 {
 	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Avatar);
 	if (!SourceASC) return;
@@ -159,12 +188,12 @@ void UGA_Warith_BasicAttack::ServerApplyDamage(FHitResult HitResult)
 	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 }
 
-FGameplayTag UGA_Warith_BasicAttack::GetAttackFireEventTag()
+FGameplayTag UGA_Wraith_BasicAttack::GetAttackFireEventTag()
 {
 	return FGameplayTag::RequestGameplayTag("ability.wraith.basicattack");
 }
 
-FGameplayTag UGA_Warith_BasicAttack::GetSpawnBulletCueEventTag()
+FGameplayTag UGA_Wraith_BasicAttack::GetSpawnBulletCueEventTag()
 {
 	return FGameplayTag::RequestGameplayTag("GameplayCue.wraith.basicattack.fire");
 }

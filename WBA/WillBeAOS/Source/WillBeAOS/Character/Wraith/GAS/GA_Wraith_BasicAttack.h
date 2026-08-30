@@ -2,13 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "GAS/WGameplayAbility.h"
-#include "GA_Warith_BasicAttack.generated.h"
+#include "GA_Wraith_BasicAttack.generated.h"
 
 class AProjectile_Normal;
 class AWCharacterBase;
 
 UCLASS()
-class WILLBEAOS_API UGA_Warith_BasicAttack : public UWGameplayAbility
+class WILLBEAOS_API UGA_Wraith_BasicAttack : public UWGameplayAbility
 {
 	GENERATED_BODY()
 	
@@ -16,13 +16,7 @@ protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
-private:
-	UPROPERTY()
-	UAbilitySystemComponent* ASC;
-	
-	UPROPERTY()
-	AWCharacterBase* Avatar;
-	
+private:	
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* BasicAttack_Montage;
 
@@ -46,6 +40,7 @@ private:
 	void LineTraceHit(FVector TraceStart, FVector TraceEnd, FHitResult& HitResult);
 
 	void SpawnFakeBulletCue(FVector StrikePoint);
+	void SpawnHitParticle(FHitResult HitResult);
 
 	void ServerApplyDamage(FHitResult HitResult);
 

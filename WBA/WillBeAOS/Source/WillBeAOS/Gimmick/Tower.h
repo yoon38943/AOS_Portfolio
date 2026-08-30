@@ -41,30 +41,22 @@ private:
 	UWAbilitySystemComponent* WAbilitySystemComponent;
 	UPROPERTY(VisibleDefaultsOnly, Category = "Gameplay Ability")
 	UWAttributeSet* WAttributeSet;
-	
-protected://체력관련
-	
-	UFUNCTION(NetMulticast, Reliable)
-	void SetHpPercentage(float Health, float MaxHealth);
-	UFUNCTION(Server, Reliable)
-	void S_SetHpPercentage(float Health, float MaxHealth);
 
-	UFUNCTION(Server, Reliable)
-	void S_InitHPPercentage();
-	UFUNCTION(NetMulticast, Reliable)
-	void C_InitHPPercentage(float Health, float MaxHealth);
-	void InitHPPercentage(float Health, float MaxHealth);
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TObjectPtr<UDataTable> StatTable;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TSubclassOf<UGameplayEffect> InitStatEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
+
 	
 public:
 	UFUNCTION(Server, Reliable)
 	void S_SetHPbarColor();
 	UFUNCTION(NetMulticast, Reliable)
 	void SetHPbarColor(FLinearColor HealthBarColor);
-
-	UFUNCTION(Server, Reliable)
-	void Server_UpdateHPBar();
-	UFUNCTION(Client, Reliable)
-	void Client_UpdateWidget(float HPPercent);
 
 	UFUNCTION(Server, Reliable)
 	void S_SetDamaged();
@@ -122,9 +114,10 @@ public://타격 관련
 	UPROPERTY(Replicated)
 	TArray<TWeakObjectPtr<AAOSCharacter>> OverlappingActors = {};
 	ETraceTypeQuery TraceChannel;
+	UPROPERTY()
 	TArray<AActor*> ActorsToIgnore;
 	TArray<FHitResult> OutHits;
-	
+	UPROPERTY()
 	AController* LastHitBy;
 
 	void AddGoldToEnemyPlayer();
@@ -151,14 +144,6 @@ public:
 	// 타겟 빔
 	void BeamToTarget(FVector TargetLocation, AAOSCharacter* Target);
 
-	// Projectile
-	bool bIsSpawnedProjectile;
-	void SpawnProjectile();
-	float LastTime = 0.0f;
-
-public:
-	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
-	
 public:
 	virtual void Tick(float DeltaTime) override;
 

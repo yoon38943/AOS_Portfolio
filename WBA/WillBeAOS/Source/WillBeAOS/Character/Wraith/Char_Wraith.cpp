@@ -1,6 +1,6 @@
 #include "Char_Wraith.h"
 
-#include "Bomb_ESkill.h"
+#include "Bomb_QSkill.h"
 #include "Character/AOSActor.h"
 #include "Character/WCharAnimInstance.h"
 #include "Camera/CameraComponent.h"
@@ -11,16 +11,15 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "Gimmick/Nexus.h"
+#include "GAS/WAbilitySystemComponent.h"
+#include "GAS/WAttributeSet.h"
 #include "Gimmick/Projectile.h"
 #include "Gimmick/Tower.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
-#include "PersistentGame/GamePlayerController.h"
 #include "PersistentGame/GamePlayerState.h"
 #include "PersistentGame/PlayGameState.h"
 #include "Projectile/Projectile_Normal.h"
-#include "Projectile/Projectile_QSkill.h"
 
 
 AChar_Wraith::AChar_Wraith()
@@ -30,6 +29,69 @@ AChar_Wraith::AChar_Wraith()
 	TrajectorySpline->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 }
 
+void AChar_Wraith::RegisterTagEvent()
+{
+	Super::RegisterTagEvent();
+	
+	AbilitySystemComponent->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag(FName("state.wraith.shootingmode.snipe")),
+		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AChar_Wraith::OnSinperTagChanged);
+
+	AbilitySystemComponent->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag(FName("state.wraith.shootingmode.bomb")),
+		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AChar_Wraith::OnBombTagChanged);
+}
+
+void AChar_Wraith::OnSinperTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount > 0)
+	{
+		GetMesh()->LinkAnimClassLayers(Sniper_Layer);
+		GetCharacterMovement()->MaxWalkSpeed = 300.f;
+		MouseSensitivityMultiply = 0.3f;
+		AttackDistance = SniperSkillDistance;
+		bIsRMSkillUsing = true;
+		GetWorld()->GetTimerManager().SetTimer(ZoomTimer, this, &ThisClass::UpdateZoom, 0.01f, true);
+	}
+	else
+	{
+		if (AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("state.combat"))))
+		{
+			GetMesh()->LinkAnimClassLayers(Combat_Layer);
+		}
+		else
+		{
+			GetMesh()->LinkAnimClassLayers(NonCombat_Layer);
+		}
+		bool bFound;
+		float SpeedValue = AbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetSpeedStatAttribute(), bFound);
+		if (bFound) GetCharacterMovement()->MaxWalkSpeed = SpeedValue;
+		MouseSensitivityMultiply = 1.f;
+		AttackDistance = NormalAttackDistance;
+		bIsRMSkillUsing = false;
+		GetWorld()->GetTimerManager().SetTimer(ZoomTimer, this, &ThisClass::UpdateZoom, 0.01f, true);
+	}
+}
+
+void AChar_Wraith::OnBombTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount > 0)
+	{
+		GetMesh()->LinkAnimClassLayers(Bomb_Layer);
+	}
+	else
+	{
+		if (AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("state.combat"))))
+		{
+			GetMesh()->LinkAnimClassLayers(Combat_Layer);
+		}
+		else
+		{
+			GetMesh()->LinkAnimClassLayers(NonCombat_Layer);
+		}
+	}
+}
+
 void AChar_Wraith::BeginPlay()
 {
 	Super::BeginPlay();
@@ -37,32 +99,11 @@ void AChar_Wraith::BeginPlay()
 	GS = Cast<APlayGameState>(GetWorld()->GetGameState());
 
 	UpdateMovementSpeedData(1.f);
-
-	if (SkillDataTable)
-	{
-		QSkill = SkillDataTable->FindRow<FSkillDataTable>(FName("QSkill"), TEXT(""));
-		ESkill = SkillDataTable->FindRow<FSkillDataTable>(FName("ESkill"), TEXT(""));
-
-		SkillEMontage = ESkill->SkillMontage;
-	}
-	
-	if (QSkill)
-	{
-		QSkillCooldownTime = QSkill->SkillCooldownTime;
-		ESkillCooldownTime = ESkill->SkillCooldownTime;
-	}
-
-	if (!HasAuthority())
-	{
-		GetWorld()->GetTimerManager().SetTimer(CleanupTimer, this, &ThisClass::CleanupFakeProjectiles, 10.f, true);
-	}
 }
 
 void AChar_Wraith::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-
-	GetWorld()->GetTimerManager().ClearAllTimersForObject(this);
 }
 
 void AChar_Wraith::Tick(float DeltaTime)
@@ -71,6 +112,42 @@ void AChar_Wraith::Tick(float DeltaTime)
 
 	if (bIsDead) return;
 
+	CheckTargeting();
+
+	// 총을 사용중인가
+	if (IsCombat || bIsQSkillUsing)
+	{
+		if (!bUseGun) bUseGun = true;
+	}
+	else
+	{
+		if (bUseGun) bUseGun = false;	
+	}
+
+	// ESkill 장전중인가
+	if (bIsQSkillUsing && IsLocallyControlled())
+	{
+		UpdateTrajectory();
+	}
+}
+
+void AChar_Wraith::StopMove(const FInputActionValue& Value)
+{
+	if (GetCharacterMovement())
+	{
+		if (bIsQSkillUsing)
+		{
+			GetCharacterMovement()->bUseControllerDesiredRotation = true;
+		}
+		else
+		{
+			GetCharacterMovement()->bUseControllerDesiredRotation = false;
+		}
+	}
+}
+
+void AChar_Wraith::CheckTargeting()
+{
 	if (!HasAuthority() && IsLocallyControlled())
 	{
 		TOptional<FHitResult> HitResult = CheckTargettingInCenter();
@@ -80,7 +157,7 @@ void AChar_Wraith::Tick(float DeltaTime)
 			FVector HitPoint = HitResult->ImpactPoint;
 			
 			float ObjectDist = FVector::DistSquared(GetActorLocation(), HitPoint);
-			if (ObjectDist <= TargettingTraceLength * TargettingTraceLength)
+			if (ObjectDist <= AttackDistance * AttackDistance)
 			{
 				AActor* TargetEnemy = HitResult->GetActor();
 
@@ -154,37 +231,6 @@ void AChar_Wraith::Tick(float DeltaTime)
 			LastTarget = nullptr;
 		}
 	}
-
-	// 총을 사용중인가
-	if (IsCombat || bIsQSkillUsing || bIsESkillUsing)
-	{
-		if (!bUseGun) bUseGun = true;
-	}
-	else
-	{
-		if (bUseGun) bUseGun = false;	
-	}
-
-	// ESkill 장전중인가
-	if (bIsESkillUsing && IsLocallyControlled())
-	{
-		UpdateTrajectory();
-	}
-}
-
-void AChar_Wraith::StopMove(const FInputActionValue& Value)
-{
-	if (GetCharacterMovement())
-	{
-		if (bIsQSkillUsing || bIsESkillUsing)
-		{
-			GetCharacterMovement()->bUseControllerDesiredRotation = true;
-		}
-		else
-		{
-			GetCharacterMovement()->bUseControllerDesiredRotation = false;
-		}
-	}
 }
 
 TOptional<FHitResult> AChar_Wraith::CheckTargettingInCenter()
@@ -202,7 +248,7 @@ TOptional<FHitResult> AChar_Wraith::CheckTargettingInCenter()
 	PC->DeprojectScreenPositionToWorld(ScreenCenter.X, ScreenCenter.Y, WorldLocation, WorldDirection);
 
 	FVector TraceStart = WorldLocation;
-	FVector TraceEnd = TraceStart + WorldDirection * (TargettingTraceLength + CameraBoom->TargetArmLength);
+	FVector TraceEnd = TraceStart + WorldDirection * (AttackDistance + CameraBoom->TargetArmLength);
 
 	FHitResult HitActor;
 	FCollisionQueryParams QueryParams;
@@ -363,58 +409,9 @@ void AChar_Wraith::AttackFire(FVector TraceEnd)
 		FinalPoint = CharLocation + (ShootDirection * NormalAttackDistance);
 	}
 	
-	CaculatedBulletDirection(FinalPoint, bIsStriking, false);
 	
 	// 애니메이션 실행
 	PlayNormalAttackAnim();
-}
-
-void AChar_Wraith::CaculatedBulletDirection(FVector Point, bool isStriking, bool isSkill)
-{
-	// 총알 발사
-	FVector MuzzleLocation = GetMesh()->GetSocketLocation("Muzzle_01");
-	FRotator FireRotation = (Point - MuzzleLocation).Rotation();
-
-	if (!isSkill)
-	{
-		AProjectile_Normal* Proj = GetWorld()->SpawnActorDeferred<AProjectile_Normal>(Projectile_Normal, FTransform(FireRotation, MuzzleLocation));
-		if (Proj)
-		{
-			Proj->SetOwner(this);
-			Proj->BulletSpeed = BulletSpeed;
-			if (isStriking)
-			{
-				//Proj->TraceLength = FVector::Dist(GetActorLocation(), Point);
-			}
-			else
-			{
-				//Proj->TraceLength = NormalAttackDistance;
-			}
-			Proj->FinishSpawning(FTransform(FireRotation, MuzzleLocation));
-		}
-	}
-	else
-	{
-		AProjectile_QSkill* Proj = GetWorld()->SpawnActorDeferred<AProjectile_QSkill>(Projectile_QSkill, FTransform(FireRotation, MuzzleLocation));
-		if (Proj)
-		{
-			Proj->SetOwner(this);
-			Proj->BulletSpeed = BulletSpeed;
-			if (isStriking)
-			{
-				Proj->TraceLength = FVector::Dist(GetActorLocation(), Point);
-				Proj->MuzzleLocation = MuzzleLocation;
-				Proj->EndLocation = Point;
-			}
-			else
-			{
-				Proj->TraceLength = QSkillDistance;
-				Proj->MuzzleLocation = MuzzleLocation;
-				Proj->EndLocation = MuzzleLocation + ((Point - MuzzleLocation).GetSafeNormal() * QSkillDistance);
-			}
-			Proj->FinishSpawning(FTransform(FireRotation, MuzzleLocation));
-		}
-	}
 }
 
 void AChar_Wraith::Server_AttackFire_Implementation(FVector TraceStart, FVector TraceEnd, FVector MuzzleLocation)
@@ -557,7 +554,6 @@ void AChar_Wraith::Multicast_AttackFire_Implementation(FVector Point, bool isStr
 {
 	if (!IsLocallyControlled() && !HasAuthority())
 	{
-		CaculatedBulletDirection(Point, isStriking, false);
 
 		PlayNormalAttackAnim();
 	}
@@ -614,15 +610,6 @@ void AChar_Wraith::QSkill_Shot()
 	}
 	
 	UseNewSkill(ESkillSlot::Q);
-	
-	if (!bIsQSkillUsing)
-	{
-		ZoomInScope();
-	}
-	else
-	{
-		ZoomOutScope();
-	}
 }
 
 void AChar_Wraith::ZoomInScope()
@@ -631,33 +618,27 @@ void AChar_Wraith::ZoomInScope()
 
 void AChar_Wraith::ZoomOutScope()
 {
-	bIsQSkillUsing = false;
 	CurrentUsingSkill = ESkillSlot::None;
-	SetZoomInBool(bIsQSkillUsing);
 	
-
-	TargettingTraceLength = NormalAttackDistance;
+	AttackDistance = NormalAttackDistance;
 	GetWorld()->GetTimerManager().SetTimer(ZoomTimer, this, &ThisClass::UpdateZoom, 0.01f, true);
-}
-
-void AChar_Wraith::SetZoomInBool_Implementation(bool bZoomIn)
-{
-	bIsQSkillUsing = bZoomIn;
-
 }
 
 void AChar_Wraith::UpdateZoom()
 {
-	float TargetFOV = bIsQSkillUsing ? 45.f : 90.f;
-	float CurrentFOV = FollowCamera->FieldOfView;
-	float NewFOV = FMath::FInterpTo(CurrentFOV, TargetFOV, GetWorld()->DeltaTimeSeconds, 10.f);
-
-	FollowCamera->SetFieldOfView(NewFOV);
-
-	if (FMath::Abs(NewFOV - TargetFOV) <= 0.5f)
+	if (IsLocallyControlled())
 	{
-		FollowCamera->SetFieldOfView(TargetFOV);
-		GetWorld()->GetTimerManager().ClearTimer(ZoomTimer);
+		float TargetFOV = bIsRMSkillUsing ? 45.f : 90.f;
+		float CurrentFOV = FollowCamera->FieldOfView;
+		float NewFOV = FMath::FInterpTo(CurrentFOV, TargetFOV, GetWorld()->DeltaTimeSeconds, 10.f);
+
+		FollowCamera->SetFieldOfView(NewFOV);
+
+		if (FMath::Abs(NewFOV - TargetFOV) <= 0.5f)
+		{
+			FollowCamera->SetFieldOfView(TargetFOV);
+			GetWorld()->GetTimerManager().ClearTimer(ZoomTimer);
+		}
 	}
 }
 
@@ -666,232 +647,7 @@ void AChar_Wraith::SkillQAttack()
 	if (bIsDead) return;
 	
 	Server_EnterCombat();
-
-	ClientQSkill();
 	ZoomOutScope();
-}
-
-void AChar_Wraith::ClientQSkill()
-{
-	AGamePlayerState* PS = Cast<AGamePlayerState>(GetPlayerState());
-	if (PS)
-	{
-		float CurrentTime = GetWorld()->GetTimeSeconds();
-		if (CurrentTime - PS->LastUseQSkillTime < QSkillCooldownTime) return;
-
-		PS->LastUseQSkillTime = CurrentTime;
-	}
-		
-	// 라인 트레이스값 계산
-	FVector WorldLocation, WorldDirection;
-	FVector2D ScreenCenter;
-	int32 ViewportX, ViewportY;
-
-	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	if (!PC) return;
-
-	PC->GetViewportSize(ViewportX, ViewportY);
-	ScreenCenter = FVector2D(ViewportX, ViewportY) * 0.5f;
-
-	PC->DeprojectScreenPositionToWorld(ScreenCenter.X, ScreenCenter.Y, WorldLocation, WorldDirection);
-
-	FVector TraceStart = WorldLocation;
-	FVector TraceEnd = TraceStart + WorldDirection * (QSkillDistance + CameraBoom->TargetArmLength);
-
-	FVector MuzzleLocation = GetMesh()->GetSocketLocation("Muzzle_01");
-
-	// 총알 방향 계산
-	TOptional<FHitResult> HitResult = CheckTargettingInCenter();
-
-	FVector StrikingPoint;
-	if (HitResult.IsSet() && FVector::DistSquared(GetActorLocation(), HitResult->ImpactPoint) <= QSkillDistance * QSkillDistance)
-	{
-		StrikingPoint = HitResult->ImpactPoint;
-		bIsStriking = true;
-	}
-	else
-	{
-		bIsStriking = false;
-		StrikingPoint = TraceEnd;
-	}
-
-	FVector CharLocation = GetActorLocation();
-	FVector ShootDirection = (StrikingPoint - CharLocation).GetSafeNormal();
-	FVector FinalPoint;
-
-	if (bIsStriking)
-	{
-		FinalPoint = StrikingPoint;
-	}
-	else
-	{
-		FinalPoint = CharLocation + (ShootDirection * QSkillDistance);
-	}
-
-	S_SkillQAttack(TraceStart, TraceEnd, MuzzleLocation);
-	CaculatedBulletDirection(FinalPoint, bIsStriking, true);
-	
-	// 애니메이션 실행
-	PlayQSKillAnim();
-}
-
-void AChar_Wraith::OnRep_QSkillUsing()
-{
-}
-
-void AChar_Wraith::S_SkillQAttack_Implementation(FVector TraceStart, FVector TraceEnd, FVector MuzzleLocation)
-{
-	AGamePlayerState* PS = Cast<AGamePlayerState>(GetPlayerState());
-	if (PS)
-	{
-		float CurrentTime = GetWorld()->GetTimeSeconds();
-		if (CurrentTime - PS->LastUseQSkillTime < QSkillCooldownTime) return;
-
-		PS->LastUseQSkillTime = CurrentTime;
-	}
-
-	TargettingTraceLength = QSkillDistance;
-
-	ServerLineTraceQSkill(TraceStart, TraceEnd, MuzzleLocation);
-
-	TargettingTraceLength = NormalAttackDistance;
-}
-
-void AChar_Wraith::ServerLineTraceQSkill(FVector TraceStart, FVector TraceEnd, FVector MuzzleLocation)
-{
-	if (Projectile_QSkill)
-	{	
-		FHitResult HitActor;
-		FCollisionQueryParams QueryParams;
-		QueryParams.AddIgnoredActor(this);
-
-		if (GS)
-		{
-			for (auto WeakActor : GS->GameManagedActors)
-			{
-				if (WeakActor)
-				{
-					AActor* Ally = WeakActor;
-			
-					if (!Ally) continue;
-		
-					// AAOSCharacter 중 아군 채널 제외
-					AAOSCharacter* InGameChar = Cast<AAOSCharacter>(Ally);
-					if (InGameChar)
-					{
-						if (InGameChar->TeamID == TeamID)
-						{
-							QueryParams.AddIgnoredActor(Ally);
-						}
-					}
-
-					// AAOSActor 중 아군 채널 제외
-					AAOSActor* InGameActor = Cast<AAOSActor>(Ally);
-					if (InGameActor)
-					{
-						if (IsValid(InGameActor) && InGameActor->TeamID == TeamID)
-						{
-							QueryParams.AddIgnoredActor(Ally);
-						}
-					}
-				}
-			}
-		}
-		
-		FCollisionObjectQueryParams ObjectQuery;
-		ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
-		ObjectQuery.AddObjectTypesToQuery(ECC_GameTraceChannel1);
-		//ObjectQuery.AddObjectTypesToQuery(ECC_Pawn);
-
-		bool AttackSuccess = GetWorld()->LineTraceSingleByObjectType(
-			HitActor,
-			TraceStart,
-			TraceEnd,
-			ObjectQuery,
-			QueryParams
-		);
-
-		FVector StrikingPoint;
-		if (AttackSuccess && FVector::DistSquared(GetActorLocation(), HitActor.ImpactPoint) <= QSkillDistance * QSkillDistance)
-		{
-			bIsStriking = true;
-			
-			float Dist = FVector::Dist(MuzzleLocation, HitActor.ImpactPoint);
-			float TravelTime = Dist / BulletSpeed;
-			float ServerLoadTime = (TravelTime - 0.05f) <= 0 ? 0.01f : TravelTime - 0.05f ;
-
-			StrikingPoint = HitActor.ImpactPoint;
-			
-			FTimerHandle HitTimer;
-
-			GetWorld()->GetTimerManager().SetTimer(HitTimer, [this, HitActor]()
-			{
-				float Damage = 0;
-				AController* Ctrl = Cast<AController>(GetController());
-				if (Ctrl)
-				{
-					AGamePlayerState* PS = Ctrl->GetPlayerState<AGamePlayerState>();
-					if (PS)
-					{
-						Damage = PS->CPower * 2.f;
-					}
-				}
-
-				if (Damage > 0)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Damage: %f"), Damage);
-					UGameplayStatics::ApplyPointDamage(
-					HitActor.GetActor(),
-					Damage,
-					GetActorForwardVector(),
-					HitActor,
-					GetInstigatorController(),
-					this,
-					UDamageType::StaticClass()
-					);
-				}
-
-				// 멀티캐스트로 HitImpact 부분에 파티클 소환
-				NM_HitEffect(HitActor.ImpactPoint);
-			}, ServerLoadTime, false);
-		}
-		else
-		{
-			bIsStriking = false;
-			StrikingPoint = TraceEnd;
-		}
-
-		FVector CharLocation = GetActorLocation();
-		FVector ShootDirection = (StrikingPoint - CharLocation).GetSafeNormal();
-		FVector FinalPoint;
-		
-		if (bIsStriking)
-		{
-			FinalPoint = StrikingPoint;
-		}
-		else
-		{
-			FinalPoint = CharLocation + (ShootDirection * QSkillDistance);
-		}
-
-		// 다른 클라이언트들에 총알 소환
-		Multicast_QSkill(FinalPoint, bIsStriking);
-	}
-}
-
-void AChar_Wraith::Multicast_QSkill_Implementation(FVector Point, bool isStriking)
-{
-	if (!IsLocallyControlled() && !HasAuthority())
-	{
-		CaculatedBulletDirection(Point, isStriking, true);
-
-		PlayQSKillAnim();
-	}
-}
-
-void AChar_Wraith::PlayQSKillAnim()
-{
-	PlayAnimMontage(QSkill->SkillMontage);
 }
 
 void AChar_Wraith::ESKill_Bomb()
@@ -907,7 +663,7 @@ void AChar_Wraith::ESKill_Bomb()
 	
 	UseNewSkill(ESkillSlot::E);
 	
-	if (!bIsESkillUsing)
+	if (!bIsQSkillUsing)
 	{
 		LoadToBomb();
 	}
@@ -919,23 +675,23 @@ void AChar_Wraith::ESKill_Bomb()
 
 void AChar_Wraith::SetLoadToBombBool_Implementation(bool bLoad)
 {
-	bIsESkillUsing = bLoad;
+	bIsQSkillUsing = bLoad;
 }
 
 void AChar_Wraith::LoadToBomb()
 {
-	bIsESkillUsing = true;
+	bIsQSkillUsing = true;
 	SetLoadToBombBool(true);
 	CurrentUsingSkill = ESkillSlot::E;
-	TargettingTraceLength = ESkillTraceDistance;
+	AttackDistance = ESkillTraceDistance;
 }
 
 void AChar_Wraith::PutInTheBomb()
 {
-	bIsESkillUsing = false;
+	bIsQSkillUsing = false;
 	SetLoadToBombBool(false);
 	ClearTrajectoryPath();
-	TargettingTraceLength = NormalAttackDistance;
+	AttackDistance = NormalAttackDistance;
 	CurrentUsingSkill = ESkillSlot::None;
 }
 
@@ -1165,7 +921,7 @@ void AChar_Wraith::SpawnESkillBomb(int64 UniqueID, FVector TraceStart, FVector T
 	if (bHaveSolution)
 	{
 		FTransform SpawnTransform(OutLaunchVelocity.Rotation(), StartLocation);
-		ABomb_ESkill* Bomb = GetWorld()->SpawnActor<ABomb_ESkill>(Bomb_ESkillClass, SpawnTransform);
+		ABomb_QSkill* Bomb = GetWorld()->SpawnActor<ABomb_QSkill>(Bomb_ESkillClass, SpawnTransform);
 		
 		if(Bomb)
 		{
@@ -1184,20 +940,13 @@ void AChar_Wraith::SpawnESkillBomb(int64 UniqueID, FVector TraceStart, FVector T
 
 			Bomb->CollisionComp->IgnoreActorWhenMoving(this, true);
 			this->MoveIgnoreActorAdd(Bomb);
-
-			AGamePlayerState* PS = GetPlayerState<AGamePlayerState>();
-			if (PS)
-			{
-				float Damage = PS->CPower * 1.5f;
-				Bomb->SetBombDamage(Damage);
-			}
 		}
 	}
 	else
 	{
 		FVector LookDir = (TargetLocation - StartLocation).GetSafeNormal();
 		FTransform SpawnTransform(LookDir.Rotation(), StartLocation);
-		ABomb_ESkill* Bomb = GetWorld()->SpawnActor<ABomb_ESkill>(Bomb_ESkillClass, SpawnTransform);
+		ABomb_QSkill* Bomb = GetWorld()->SpawnActor<ABomb_QSkill>(Bomb_ESkillClass, SpawnTransform);
 		
 		if(Bomb)
 		{
@@ -1219,13 +968,6 @@ void AChar_Wraith::SpawnESkillBomb(int64 UniqueID, FVector TraceStart, FVector T
 
 			Bomb->CollisionComp->IgnoreActorWhenMoving(this, true);
 			this->MoveIgnoreActorAdd(Bomb);
-
-			AGamePlayerState* PS = GetPlayerState<AGamePlayerState>();
-			if (PS)
-			{
-				float Damage = PS->CPower * 1.5f;
-				Bomb->SetBombDamage(Damage);
-			}
 		}
 	}
 }
@@ -1291,7 +1033,7 @@ void AChar_Wraith::Multicast_ExplodeBomb_Implementation(int64 UniID)
 	
 	if (FakeBombs.Contains(UniID))
 	{
-		TWeakObjectPtr<ABomb_ESkill> TargetBomb = FakeBombs[UniID];
+		TWeakObjectPtr<ABomb_QSkill> TargetBomb = FakeBombs[UniID];
 		
 		if (TargetBomb.IsValid())
 		{
@@ -1307,5 +1049,5 @@ void AChar_Wraith::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& O
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ThisClass, TargettingTraceLength);
+	DOREPLIFETIME(ThisClass, AttackDistance);
 }

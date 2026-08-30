@@ -22,15 +22,13 @@ void UGA_Shinbi_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		return;
 	}
 
-	AvatarActor = GetAvatarActorFromActorInfo();
-
 	HitActors.Empty();
 
 	bComboInputEnabled = false;
 
-	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(AvatarActor))
+	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(Avatar))
 	{
-		CharInterface->RequestSnapToCameraDirection();
+		CharInterface->RequestSnapToCameraDirection(20.f);
 	}
 
 	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
@@ -100,9 +98,9 @@ void UGA_Shinbi_BasicAttack::TryCommitCombo()
 	OwnerAnimInstance->Montage_JumpToSection(NextComboName, ComboMontage);
 	bComboInputEnabled = false;
 	
-	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(AvatarActor))
+	if (IInterface_CharacterAction* CharInterface = Cast<IInterface_CharacterAction>(Avatar))
 	{
-		CharInterface->RequestSnapToCameraDirection();
+		CharInterface->RequestSnapToCameraDirection(20.f);
 	}
 }
 
@@ -134,13 +132,13 @@ void UGA_Shinbi_BasicAttack::DoDamage(FGameplayEventData Data)
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
 	if (!TargetASC) return;
 
-	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(AvatarActor);
+	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Avatar);
 	if (!SourceASC) return;
 
 	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
 	if (!EffectContext.IsValid()) return;
 
-	EffectContext.AddInstigator(AvatarActor, AvatarActor);
+	EffectContext.AddInstigator(Avatar, Avatar);
 	
 	if (Data.TargetData.IsValid(0))
 	{

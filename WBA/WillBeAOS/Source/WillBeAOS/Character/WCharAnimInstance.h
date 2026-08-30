@@ -82,7 +82,7 @@ public:
 
 	bool bSetForward = false;
 
-	float TurnDelayThreshold = 0.2f;
+	float TurnDelayThreshold = 0.15f;
 	float CurrentTurnDelayTime = 0.f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "TurnInPlace")
@@ -120,6 +120,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsRecalling;
+
+	void BindCheckRecallTag();
+	void OnRecallTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
 
 	UPROPERTY(BlueprintReadOnly, Category = Movement)
 	float WCharSpeed;
@@ -160,10 +163,18 @@ protected:
 	UFUNCTION()
 	void OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount);
 
-	// 슈팅 모드
-	UFUNCTION(BlueprintCallable, Category = "Animation|ShootingMode", meta = (BlueprintThreadSafe))
-	virtual FGameplayTag GetCurrentShootingModeTag() const { return FGameplayTag(); }
+	// 파츠 Loop
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	UAnimationAsset* ActivateSkillLoopingParts;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation")
+	bool bIsValidLoopingPart = false;
+
+	void UpdateSkillLoopingParts(UAnimationAsset* NewLoopingAnimation);
+
 
 public:
+	virtual void OnUpdatedASC() {};
+	
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 };

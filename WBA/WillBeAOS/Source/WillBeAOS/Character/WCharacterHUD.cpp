@@ -146,6 +146,8 @@ void UWCharacterHUD::SetState()
 		
 		FString DeathString = FString::Printf(TEXT("D : %d"), AWPS->GetDeathPoints());
 		DeathPoint->SetText(FText::FromString(DeathString));
+
+		if (!OwnerAbilitySystemComponent) return;
 		
 		// 캐릭터 스탯 출력
 		float Attack = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetAttackStatAttribute(), bFound);
@@ -168,7 +170,7 @@ void UWCharacterHUD::SetState()
 		float SpeedStat = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetSpeedStatAttribute(), bFound);
 		if (bFound)
 		{
-			FString SpeedString = FString::Printf(TEXT("스피드: %.2f"), SpeedStat/600.f);
+			FString SpeedString = FString::Printf(TEXT("스피드: %.2f"), SpeedStat/500.f);
 			Speed->SetText(FText::FromString(SpeedString));
 		}
 		

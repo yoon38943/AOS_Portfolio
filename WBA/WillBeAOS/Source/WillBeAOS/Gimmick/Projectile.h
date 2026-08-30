@@ -5,15 +5,13 @@
 #include "GameFramework/Actor.h"
 #include "Projectile.generated.h"
 
+class UGameplayEffect;
 class USphereComponent;
 
 UCLASS()
 class WILLBEAOS_API AProjectile : public AActor
 {
 	GENERATED_BODY()
-
-	UPROPERTY(ReplicatedUsing = OnRep_Target)
-	AAOSCharacter* Target;
 
 	UFUNCTION()
 	void OnRep_Target();
@@ -25,10 +23,15 @@ class WILLBEAOS_API AProjectile : public AActor
 	USphereComponent* CollisionComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "Particle")
-	class UParticleSystemComponent* Particle;
+	UParticleSystemComponent* Particle;
 
 	UPROPERTY(VisibleAnywhere, Category = "Movement")
 	class UProjectileMovementComponent* ProjectileMovement;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TSubclassOf<UGameplayEffect> HitEffect;
+
+	void ApplyDamageToTarget(AActor* HitActor);
 	
 public:	
 	AProjectile();
@@ -47,6 +50,11 @@ public:
 		bool bFromSweep,
 		const FHitResult& SweepResult
 	);
+	
+	UPROPERTY(ReplicatedUsing = OnRep_Target)
+	AAOSCharacter* Target;
+	
+	float ProjectileAttackStat;
 
 	void SetHomingTarget();
 

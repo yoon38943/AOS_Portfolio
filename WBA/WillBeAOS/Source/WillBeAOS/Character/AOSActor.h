@@ -22,6 +22,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	FName ActorName;
+
 public:	
 	virtual void Tick(float DeltaTime) override;
 

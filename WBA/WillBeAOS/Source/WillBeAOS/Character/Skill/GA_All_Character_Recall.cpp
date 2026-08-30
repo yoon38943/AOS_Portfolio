@@ -14,45 +14,36 @@ void UGA_All_Character_Recall::ActivateAbility(const FGameplayAbilitySpecHandle 
                                                const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-	ASC = GetAbilitySystemComponentFromActorInfo();
-
-	Avatar = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
+	
 	if (Avatar)
 	{
 		RecallMontage = Avatar->GetStartRecallMontage();
 		CompleteRecallMontage = Avatar->GetCompleteRecallMontage();
+		RecallCueTag = Avatar->GetRecallCueTag();
 	}
 
 	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 	{
+		Avatar->IsRecalling = true;
+		
 		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, RecallMontage);
 		MontageTask->OnCancelled.AddDynamic(this, &ThisClass::K2_EndAbility);
 		MontageTask->ReadyForActivation();
+
+		GetWorld()->GetTimerManager().SetTimer(RecallTimerHandle, this, &ThisClass::CompleteRecall, RecallTime, false);
 	}
 
-	if (K2_HasAuthority())
-	{
-		CallRecall_Server();
-	}
-	else
+	if (!K2_HasAuthority())
 	{
 		CallRecall_Client();
 	}
 
 	if (ASC && HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
-		ASC->AddGameplayCue(GetRecallCueTag());
+		ASC->AddGameplayCue(RecallCueTag);
 
 	UAbilityTask_WaitInputPress* WaitInputTask = UAbilityTask_WaitInputPress::WaitInputPress(this);
 	WaitInputTask->OnPress.AddDynamic(this, &ThisClass::OnRecallPressAgain);
 	WaitInputTask->ReadyForActivation();
-}
-
-void UGA_All_Character_Recall::CallRecall_Server()
-{
-	Avatar->IsRecalling = true;
-
-	GetWorld()->GetTimerManager().SetTimer(RecallTimerHandle, this, &ThisClass::CompleteRecall_Server, RecallTime, false);
 }
 
 void UGA_All_Character_Recall::CallRecall_Client()
@@ -61,30 +52,30 @@ void UGA_All_Character_Recall::CallRecall_Client()
 	{
 		ShowRecallWidget();
 	}
-
-	GetWorld()->GetTimerManager().SetTimer(RecallTimerHandle, this, &ThisClass::CompleteRecall_Client, RecallTime, false);
 }
 
-void UGA_All_Character_Recall::CompleteRecall_Server()
+void UGA_All_Character_Recall::CompleteRecall()
 {
 	Avatar->IsRecalling = false;
-	
-	RecallToBase();
 
-	if (Avatar && CompleteRecallMontage)
+	if (K2_HasAuthority())
 	{
-		Avatar->MultiPlayMontage(CompleteRecallMontage);
+		RecallToBase();
+	}
+	else
+	{
+		if (IsLocallyControlled())
+		{
+			HideRecallWidget();
+		}
+		
+		if (Avatar && CompleteRecallMontage)
+		{
+			Avatar->PlayAnimMontage(CompleteRecallMontage);
+		}
 	}
 
 	K2_EndAbility();
-}
-
-void UGA_All_Character_Recall::CompleteRecall_Client()
-{
-	if (IsLocallyControlled())
-	{
-		HideRecallWidget();
-	}
 }
 
 void UGA_All_Character_Recall::RecallToBase()
@@ -95,12 +86,12 @@ void UGA_All_Character_Recall::RecallToBase()
 	AGamePlayerState* WPlayerState = Cast<AGamePlayerState>(Controller->PlayerState);
 	if (!WPlayerState) return;
 	
-	if (AWCharacterBase* PlayerChar = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo()))
+	if (Avatar && WPlayerState->PlayerSpawner)
 	{
-		PlayerChar->SetActorLocation(WPlayerState->PlayerSpawner->GetActorLocation());
-		FRotator LookCenter = (FVector(0, 0, 100) - PlayerChar->GetActorLocation()).Rotation();
-		PlayerChar->SetActorRotation(LookCenter);
-		PlayerChar->GetController()->SetControlRotation(LookCenter);
+		Avatar->SetActorLocation(WPlayerState->PlayerSpawner->GetActorLocation());
+		FRotator LookCenter = (FVector(0, 0, 100) - Avatar->GetActorLocation()).Rotation();
+		Avatar->SetActorRotation(LookCenter);
+		Avatar->GetController()->SetControlRotation(LookCenter);
 	}
 }
 
@@ -141,15 +132,10 @@ void UGA_All_Character_Recall::EndAbility(const FGameplayAbilitySpecHandle Handl
 	Avatar->IsRecalling = false;
 
 	if (ASC && HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
-		ASC->RemoveGameplayCue(GetRecallCueTag());
+		ASC->RemoveGameplayCue(RecallCueTag);
 	
 	if (RecallTimerHandle.IsValid())
 		GetWorld()->GetTimerManager().ClearTimer(RecallTimerHandle);
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-}
-
-FGameplayTag UGA_All_Character_Recall::GetRecallCueTag()
-{
-	return FGameplayTag::RequestGameplayTag("GameplayCue.state.recall");
 }

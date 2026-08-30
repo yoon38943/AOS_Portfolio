@@ -44,9 +44,6 @@ public:
 	// 공격 록온 변수
 	UPROPERTY(BlueprintReadWrite, Category = "LockOn")
 	bool bIsEnemyLockOn;
-
-	UPROPERTY(Replicated)
-	bool IsRecalling;
 	
 protected:
 	virtual void BeginPlay() override;

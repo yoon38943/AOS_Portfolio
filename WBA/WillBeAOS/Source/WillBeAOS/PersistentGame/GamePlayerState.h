@@ -69,10 +69,10 @@ public:
 	class APlayerSpawner* PlayerSpawner;
 	
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	UWAbilitySystemComponent* WAbilitySystemComponent;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	UWAttributeSet* WAttributeSet;
 	
 	UPROPERTY(ReplicatedUsing=OnRep_Health)

@@ -12,6 +12,11 @@ void UWraith_AnimInstance::NativeInitializeAnimation()
 void UWraith_AnimInstance::NativeBeginPlay()
 {
 	Super::NativeBeginPlay();
+}
+
+void UWraith_AnimInstance::OnUpdatedASC()
+{
+	Super::OnUpdatedASC();
 
 	AActor* OwningActor = GetOwningActor();
 	if (!OwningActor) return;

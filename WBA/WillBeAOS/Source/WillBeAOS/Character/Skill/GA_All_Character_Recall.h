@@ -15,20 +15,14 @@ class WILLBEAOS_API UGA_All_Character_Recall : public UWGameplayAbility
 
 public:
 	UPROPERTY(BlueprintReadWrite)
-	float RecallTime = 8.f;
+	float RecallTime = 7.7f;
 	
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
-	static FGameplayTag GetRecallCueTag();
-
 private:
-	UPROPERTY()
-	UAbilitySystemComponent* ASC;
-	
-	UPROPERTY()
-	AWCharacterBase* Avatar;
+	FGameplayTag RecallCueTag;
 	
 	UPROPERTY()
 	UAnimMontage* RecallMontage;
@@ -40,8 +34,7 @@ private:
 	
 	void CallRecall_Server();
 	void CallRecall_Client();
-	void CompleteRecall_Server();
-	void CompleteRecall_Client();
+	void CompleteRecall();
 	void RecallToBase();
 
 	UPROPERTY(EditDefaultsOnly)
