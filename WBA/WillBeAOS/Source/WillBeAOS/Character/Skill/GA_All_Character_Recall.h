@@ -19,9 +19,13 @@ public:
 	
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	virtual void CancelAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateCancelAbility) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 private:
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UGameplayEffect> RecallEffectClass;
+	
 	FGameplayTag RecallCueTag;
 	
 	UPROPERTY()
@@ -32,8 +36,6 @@ private:
 
 	FTimerHandle RecallTimerHandle;
 	
-	void CallRecall_Server();
-	void CallRecall_Client();
 	void CompleteRecall();
 	void RecallToBase();
 
@@ -42,10 +44,4 @@ private:
 
 	UPROPERTY()
 	URecallWidget* RecallWidget;
-
-	void ShowRecallWidget();
-	void HideRecallWidget();
-
-	UFUNCTION()
-	void OnRecallPressAgain(float TimeElapsed);
 };

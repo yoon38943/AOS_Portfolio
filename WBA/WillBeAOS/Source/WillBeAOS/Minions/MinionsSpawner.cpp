@@ -18,6 +18,8 @@ void AMinionsSpawner::BeginPlay()
 	{
 		GM->OnGameEnd.AddUObject(this, &ThisClass::GameStateIsEnd);
 	}
+
+	//StartSpawnMinions();
 }
 
 void AMinionsSpawner::GameStateIsEnd()

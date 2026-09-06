@@ -3,11 +3,11 @@
 #include "CoreMinimal.h"
 #include "AttributeSet.h"
 #include "Blueprint/UserWidget.h"
-#include "GAS/WAttributeSet.h"
 #include "Skill/SkillType.h"
 #include "UI/SkillIconWidget.h"
 #include "WCharacterHUD.generated.h"
 
+struct FOnAttributeChangeData;
 class APlayGameState;
 class UTextBlock;
 
@@ -28,6 +28,13 @@ public: // GAS
 	void ValueChanged(const FOnAttributeChangeData& Data);
 	void MaxValueChanged(const FOnAttributeChangeData& Data);
 
+	void RegisterTagEvent();
+
+	void OnAttackStatChanged(const FOnAttributeChangeData& Data);
+	void OnAdditionalHealthStatChanged(const FOnAttributeChangeData& Data);
+	void OnDefenseStatChanged(const FOnAttributeChangeData& Data);
+	void OnSpeedStatChanged(const FOnAttributeChangeData& Data);
+
 	float CachedValue;
 	float CachedMaxValue;
 
@@ -35,7 +42,6 @@ public: // GAS
 	UWAbilitySystemComponent* OwnerAbilitySystemComponent;
 public:
 
-	FTimerHandle TimerHandle;
 	FTimerHandle ErrorTimerHandle;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Character")

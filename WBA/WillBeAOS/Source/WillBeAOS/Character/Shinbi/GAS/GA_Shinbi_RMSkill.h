@@ -62,7 +62,7 @@ private:
 
 	float CooldownTime = 8.f;
 
-	void ApplyCooldown();
+	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
 	
 	void EndDashAbility();
 };

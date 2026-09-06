@@ -7,7 +7,7 @@ FOnlineSessionSettings UWNetStatics::GenerateOnlineSessionSettings(const FName& 
 {
 	FOnlineSessionSettings OnlineSessionSettings{};
 	OnlineSessionSettings.bIsLANMatch = false;
-	OnlineSessionSettings.NumPublicConnections = 2;
+	OnlineSessionSettings.NumPublicConnections = 1;
 	OnlineSessionSettings.bShouldAdvertise = true;
 	OnlineSessionSettings.bUsesPresence = false;
 	OnlineSessionSettings.bAllowJoinViaPresence = false;

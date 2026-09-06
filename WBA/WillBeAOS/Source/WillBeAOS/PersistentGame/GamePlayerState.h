@@ -94,40 +94,30 @@ public:
 	float GetMaxHP();
 	UFUNCTION(BlueprintCallable)
 	void SetHP(int32 NewHP);
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_ApplyDamage(int32 Damage, AController* AttackPlayer, AActor* DamageCauser);
 
 	UFUNCTION(BlueprintPure)
 	float GetHPPercentage();
 	
     // Attack power
-    UPROPERTY(BlueprintReadWrite, Category = "Stats")
-    int32 CPower;
+    UPROPERTY(EditDefaultsOnly, Category = "Stats")
+    TSubclassOf<UGameplayEffect> AddAttackEffectClass;
 	UFUNCTION(Server, Reliable)
 	void AddPower(int32 Power);
-	UFUNCTION(NetMulticast, Reliable)
-	void C_SetPower(int32 NewPower);
     // Additional health
-    UPROPERTY(BlueprintReadWrite, Category = "Stats")
-    int32 CAdditionalHealth;
+	UPROPERTY(EditDefaultsOnly, Category = "Stats")
+	TSubclassOf<UGameplayEffect> AddHealthEffectClass;
 	UFUNCTION(Server, Reliable)
 	void AddHealth(int32 Health);
-	UFUNCTION(NetMulticast, Reliable)
-	void C_SetHealth(int32 NewHP, int32 NewMaxHP, int32 NewAddHealth);
     // Defense power
-    UPROPERTY(BlueprintReadWrite, Category = "Stats")
-    float CDefense;
+	UPROPERTY(EditDefaultsOnly, Category = "Stats")
+	TSubclassOf<UGameplayEffect> AddDefenseEffectClass;
 	UFUNCTION(Server, Reliable)
 	void AddDefence(float Defence);
-	UFUNCTION(NetMulticast, Reliable)
-	void C_SetDefence(float NewDefence);
     // Movement speed
-	UPROPERTY(BlueprintReadWrite, Category = "Stats")
-	float ItemSpeed = 1.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Stats")
+	TSubclassOf<UGameplayEffect> AddSpeedEffectClass;
 	UFUNCTION(Server, Reliable)
 	void AddSpeed(float Speed);
-	UFUNCTION(NetMulticast, Reliable)
-	void C_SetSpeed(float NewSpeed);
     //Exp
     UPROPERTY(BlueprintReadWrite, Category = "Stats")
     int32 CCurrentExp;

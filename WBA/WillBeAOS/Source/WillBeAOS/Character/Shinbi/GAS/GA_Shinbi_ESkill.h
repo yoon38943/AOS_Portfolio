@@ -53,5 +53,5 @@ private:
 
 	float CooldownTime = 12.f;
 	
-	void ApplyCooldown();
+	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
 };

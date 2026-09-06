@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Nexus.generated.h"
 
+struct FOnAttributeChangeData;
 class UBoxComponent;
 class USphereComponent;
 class UWAbilitySystemComponent;
@@ -71,4 +72,6 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
+
+	void OnHealthChanged(const FOnAttributeChangeData& Data);
 };

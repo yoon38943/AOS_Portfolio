@@ -138,7 +138,7 @@ void UGA_Wraith_QSkill::OnTargetDataReady(const FGameplayAbilityTargetDataHandle
 	if (K2_HasAuthority())
 		SpawnQSkillBomb(TraceStart, TraceEnd);
 	
-	ApplyCooldown();
+	CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfoRef());
 }
 
 void UGA_Wraith_QSkill::SpawnQSkillBomb(FVector TraceStart, FVector TraceEnd)
@@ -236,7 +236,8 @@ void UGA_Wraith_QSkill::SpawnQSkillBomb(FVector TraceStart, FVector TraceEnd)
 	}
 }
 
-void UGA_Wraith_QSkill::ApplyCooldown()
+void UGA_Wraith_QSkill::ApplyCooldown(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(CooldownEffectClass, 1.f);
 
@@ -244,12 +245,7 @@ void UGA_Wraith_QSkill::ApplyCooldown()
 	{
 		SpecHandle.Data->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag("ability.data.cooldown"), CooldownTime);
 
-		ApplyGameplayEffectSpecToOwner(
-			GetCurrentAbilitySpecHandle(),
-			GetCurrentActorInfo(),
-			GetCurrentActivationInfoRef(),
-			SpecHandle
-		);
+		ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 	}
 }
 

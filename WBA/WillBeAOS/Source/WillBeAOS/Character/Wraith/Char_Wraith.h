@@ -69,37 +69,18 @@ public:
 
 	// 공격
 	bool CanAttack = true;
-	
-	void PlayNormalAttackAnim();
 
 	float BulletSpeed = 12000.f;
 	float ComboCount = 0;
 	bool bIsStriking = false;
 	
-	void AttackFire(FVector TraceEnd);
-	
 
 	float LastAttackTime = 0.f;
 	float AttackCountTime = 0.73f;
-	UFUNCTION(Server, Reliable)
-	void Server_AttackFire(FVector TraceStart, FVector TraceEnd, FVector MuzzleLocation);
-	void ServerLineTraceHit(FVector TraceStart, FVector TraceEnd, FVector MuzzleLocation);
-
-	UFUNCTION(NetMulticast,Reliable)
-	void Multicast_AttackFire(FVector Point, bool isStriking);
-
-	UFUNCTION(NetMulticast, Reliable)
-	void NM_HitEffect(const FVector& HitLocation);
 
 public:
 	// 스킬 관련
 	ESkillSlot CurrentUsingSkill = ESkillSlot::None;
-
-	void UseNewSkill(ESkillSlot NewSkill);
-	
-	virtual void ActivateSkill_Implementation(ESkillSlot SkillSlot) override;
-	
-	virtual void Handle_UseSkillButton(ESkillSlot Skillslot) override;	// 스킬 input switch 함수
 
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TSubclassOf<UAnimInstance> Sniper_Layer;
@@ -107,26 +88,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TSubclassOf<UAnimInstance> Bomb_Layer;
 	
-	// Q스킬
-	UPROPERTY(EditAnywhere)
-	UAnimMontage* ZoomInMontage;
-	void QSkill_Shot();
-
-	FMovementSpeedStruct MovementSpeedData;
-
-	UPROPERTY(BlueprintReadOnly)
-	bool bUseGun = false;
-	FSkillDataTable* QSkill;
-
-	float QSkillCooldownTime;
-	FTimerHandle S_SkillQTimer;
-
-	FTimerHandle ZoomTimer;
-
-	void ZoomInScope();
-	void ZoomOutScope();
 	void UpdateZoom();
-	void SkillQAttack();
 
 	// E스킬
 	UPROPERTY(EditAnywhere)
@@ -157,27 +119,8 @@ public:
 	FTimerHandle CleanupTimer;
 	
 
-	void ESKill_Bomb();
-	void LoadToBomb();
-	void PutInTheBomb();
 	void UpdateTrajectory();
 	void DrawTrajectoryPath(const TArray<FPredictProjectilePathPointData>& PathData);
 	void ClearTrajectoryPath();
-	void SkillEAttack();
-	void ClientESkill();
 	void SpawnESkillBomb(int64 UniqueID, FVector TraceStart, FVector TraceEnd);
-	int64 GetUniqueProjectileID();
-	void CleanupFakeProjectiles();
-	void PlayThrowBombAnim();
-	virtual void OnRep_ESkillUsing() override;
-
-	
-	UFUNCTION(Server, Reliable)
-	void SetLoadToBombBool(bool bLoad);
-	UFUNCTION(Server, Reliable)
-	void Server_ESkillAttack(int64 UniqueID, FVector TraceStart, FVector TraceEnd);
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_ESkillAttack(int64 UniqueID, FVector TraceStart, FVector TraceEnd);
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_ExplodeBomb(int64 UniID);
 };

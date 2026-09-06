@@ -9,7 +9,10 @@
 #include "Character/AOSActor.h"
 #include "Character/AOSCharacter.h"
 #include "Character/WCharacterBase.h"
+#include "Components/CapsuleComponent.h"
 #include "Game/Network/WGameSession.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GAS/WAbilitySystemComponent.h"
 #include "Gimmick/PlayerSpawner.h"
 #include "Gimmick/SpawnTowerPoint.h"
 #include "Gimmick/Tower.h"
@@ -208,7 +211,11 @@ void APlayGameMode::StartSpawnPlayers()
 		APlayerController* PC = Iterator->Get();
 		if (PC)
 		{
-			RespawnPlayer(nullptr, PC);
+			AGamePlayerController* PlayerController = Cast<AGamePlayerController>(PC);
+			if (PlayerController)
+			{
+				RespawnPlayer(nullptr, PlayerController);
+			}
 		}
 	}
 }
@@ -323,92 +330,82 @@ void APlayGameMode::Logout(AController* Exiting)
 	Super::Logout(Exiting);
 }
 
-void APlayGameMode::RespawnPlayer(APawn* Player, AController* PlayerController)
+void APlayGameMode::SetResapwnPlayerTimer(AWCharacterBase* Player, AGamePlayerController* PlayerController, float RespawnTime)
 {
-	if (!PlayerController)
+	FTimerDelegate SpawnTimerDelegate = FTimerDelegate::CreateUObject(this, &ThisClass::RespawnPlayer, Player, PlayerController);
+	GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, SpawnTimerDelegate, RespawnTime, false);
+}
+
+void APlayGameMode::RespawnPlayer(AWCharacterBase* Player, AGamePlayerController* PC)
+{
+	if (!PC)
 	{
 		return;
 	}
 	
-	AGamePlayerController* PC = Cast<AGamePlayerController>(PlayerController);
-	if (PC)
+	AGamePlayerState* PS = PC->GetPlayerState<AGamePlayerState>();
+	if (PS)
 	{
-		AGamePlayerState* PS = PC->GetPlayerState<AGamePlayerState>();
-		if (PS)
+		if (Player == nullptr)
 		{
-			if (Player==nullptr)
+			SetPlayerSpawners(PS);
+
+			if (!PS->PlayerSpawner)
 			{
-				SetPlayerSpawners(PS);
+				UE_LOG(LogTemp, Warning, TEXT("Player Spawner NULL"));
+				return;
+			}
 
-				if (!PS->PlayerSpawner)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Player Spawner NULL"));
-					return;
-				}
+			FActorSpawnParameters Params;
+			Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+			
+			AWCharacterBase* RespawnChar = GetWorld()->SpawnActor<AWCharacterBase>(PS->InGamePlayerInfo.SelectedCharacter, PS->PlayerSpawner->GetActorLocation(), PS->PlayerSpawner->GetActorRotation(), Params);
+			if (RespawnChar)
+			{
+				UE_LOG(LogTemp, Log, TEXT("Player Spawn : %s, %d"),*PC->GetName(),PS->InGamePlayerInfo.PlayerTeam);
 
-				FActorSpawnParameters Params;
-				Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+				RespawnChar->TeamID = PS->InGamePlayerInfo.PlayerTeam;
 				
-				AAOSCharacter* Respawnpawn = GetWorld()->SpawnActor<AAOSCharacter>(PS->InGamePlayerInfo.SelectedCharacter, PS->PlayerSpawner->GetActorLocation(), PS->PlayerSpawner->GetActorRotation(), Params);
-				if (Respawnpawn)
-				{
-					AWCharacterBase* RespawnChar = Cast<AWCharacterBase>(Respawnpawn);
-					if (RespawnChar)
-					{
-						UE_LOG(LogTemp, Log, TEXT("Player Spawner %s, %d"),*PC->GetName(),PS->InGamePlayerInfo.PlayerTeam);
-
-						RespawnChar->TeamID = PS->InGamePlayerInfo.PlayerTeam;
-						
-						PC->OnPossess(RespawnChar);
-						PC->OnGameStateChanged(E_GamePlay::ReadyCountdown);
-						InGS->CheckPlayerSpawned(PC);
-						UE_LOG(LogTemp, Log, TEXT("첫 스폰!"));
-					}
-					else
-					{
-						UE_LOG(LogTemp, Warning, TEXT("RespawnChar is null!"));
-					}
-				}
-				else
-				{
-					UE_LOG(LogTemp, Warning, TEXT("PawnClass is null!"));
-				}
+				RespawnChar->SetActorRotation(PS->PlayerSpawner->GetActorRotation());
+				
+				PC->OnPossess(RespawnChar);
+				PC->SetControlRotation(PS->PlayerSpawner->GetActorRotation());
+				PC->OnGameStateChanged(E_GamePlay::ReadyCountdown);
+				InGS->CheckPlayerSpawned(PC);
+				UE_LOG(LogTemp, Log, TEXT("첫 스폰!"));
 			}
 			else
 			{
-				AWCharacterBase* RespawnChar = GetWorld()->SpawnActor<AWCharacterBase>(PS->InGamePlayerInfo.SelectedCharacter, PS->PlayerSpawner->GetActorLocation(), PS->PlayerSpawner->GetActorRotation());
-
-				RespawnChar->TeamID = PS->InGamePlayerInfo.PlayerTeam;
-
-				PC->GetPawn()->Destroy();
-				
-				PC->OnPossess(RespawnChar);
-					
-				PS->SetHP(PS->GetMaxHP());
-					
-				UE_LOG(LogTemp, Log, TEXT("리스폰!"));
+				UE_LOG(LogTemp, Warning, TEXT("Failed Spawn Player"));
 			}
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("리스폰 %s PlayerState 없음!"),*PlayerController->GetName());
+			if (PS->PlayerSpawner)
+			{
+				Player->Respawn_Multicast(PS->PlayerSpawner->GetActorLocation(), PS->PlayerSpawner->GetActorRotation());
+			}
+			else
+			{
+				Player->Respawn_Multicast(FVector(21490.f,9960.f,150.f), FRotator(0,0,0));
+			}
+			
+			PC->GetPawn()->Destroyed();
+			PC->OnPossess(Player);
+			Player->Respawn_Client();
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("리스폰 %s 없음!"),*PlayerController->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("리스폰 %s PlayerState 없음!"),*PC->GetName());
 	}
 }
 
-void APlayGameMode::OnObjectKilled(TScriptInterface<IGetInfoInterface> DestroyedObject, AController* Killer)
+void APlayGameMode::OnObjectKilled(TScriptInterface<IGetInfoInterface> DestroyedObject, AGamePlayerState* KillerPS)
 {
-	if (!DestroyedObject || !Killer) return;
-
-	AGamePlayerState* PlayerState = Killer->GetPlayerState<AGamePlayerState>();
-	if (PlayerState)
-	{
-		PlayerState->Server_AddGold(DestroyedObject->GetGoldReward());
-	}
+	if (!DestroyedObject || !KillerPS) return;
+	
+	KillerPS->Server_AddGold(DestroyedObject->GetGoldReward());
 }
 
 void APlayGameMode::OnNexusDestroyed(E_TeamID LoseTeam)

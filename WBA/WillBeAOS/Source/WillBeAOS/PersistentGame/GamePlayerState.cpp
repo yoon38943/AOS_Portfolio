@@ -1,5 +1,6 @@
 #include "PersistentGame/GamePlayerState.h"
 
+#include "GamePlayerController.h"
 #include "PlayGameMode.h"
 #include "PlayGameState.h"
 #include "Character/WCharacterBase.h"
@@ -7,6 +8,7 @@
 #include "Character/Skill/SkillDataTable.h"
 #include "Game/WGameInstance.h"
 #include "GAS/WAbilitySystemComponent.h"
+#include "GAS/WAttributeSet.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -14,7 +16,7 @@ AGamePlayerState::AGamePlayerState()
 {
 	WAbilitySystemComponent = CreateDefaultSubobject<UWAbilitySystemComponent>(TEXT("ASC"));
 	WAbilitySystemComponent->SetIsReplicated(true);
-	WAbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Full);
+	WAbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	WAttributeSet = CreateDefaultSubobject<UWAttributeSet>(TEXT("AttributeSet"));
 	
@@ -52,11 +54,6 @@ void AGamePlayerState::StartInGamePhase()
 	if (HasAuthority())
 	{
 		// Initialize default values for the player's stats
-		MaxHP = 200;
-		SetHP(MaxHP);
-		CPower = 20;
-		CAdditionalHealth = 0;
-		CDefense = 5;
 		CCurrentExp = 0;
 		CExperience = 100;
 		CLevel = 0;
@@ -103,129 +100,50 @@ float AGamePlayerState::GetHPPercentage()
 	return static_cast<float>(HP) / static_cast<float>(MaxHP);
 }
 
-void AGamePlayerState::C_SetSpeed_Implementation(float NewSpeed)
-{
-	ItemSpeed = NewSpeed;
-	AWCharacterBase* Character = Cast<AWCharacterBase>(GetPawn());
-	if (Character)
-	{
-		Character->UpdateMovementSpeedData(1.0f);
-	}
-}
-
 void AGamePlayerState::AddSpeed_Implementation(float Speed)
 {
-	ItemSpeed += Speed;
+	FGameplayEffectContextHandle ContextHandle = WAbilitySystemComponent->MakeEffectContext();
+
+	FGameplayEffectSpecHandle SpecHandle = WAbilitySystemComponent->MakeOutgoingSpec(AddSpeedEffectClass, 1.f, ContextHandle);
+	if (!SpecHandle.IsValid()) return;
+
+	WAbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	
 	AWCharacterBase* Character = Cast<AWCharacterBase>(GetPawn());
 	if (Character)
 	{
 		Character->UpdateMovementSpeedData(1.0f);
 	}
-	C_SetSpeed(ItemSpeed);
-}
-
-void AGamePlayerState::C_SetDefence_Implementation(float NewDefence)
-{
-	CDefense = NewDefence;
 }
 
 void AGamePlayerState::AddDefence_Implementation(float Defence)
 {
-	CDefense += Defence;
-	C_SetDefence(CDefense);
-}
+	FGameplayEffectContextHandle ContextHandle = WAbilitySystemComponent->MakeEffectContext();
 
-void AGamePlayerState::C_SetHealth_Implementation(int32 NewHP, int32 NewMaxHP, int32 NewAddHealth)
-{
-	CAdditionalHealth = NewAddHealth;
-    
-	HP = NewHP;
-	MaxHP = NewMaxHP;
+	FGameplayEffectSpecHandle SpecHandle = WAbilitySystemComponent->MakeOutgoingSpec(AddDefenseEffectClass, 1.f, ContextHandle);
+	if (!SpecHandle.IsValid()) return;
+
+	WAbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 }
 
 void AGamePlayerState::AddHealth_Implementation(int32 Health)
 {
-	CAdditionalHealth += Health;
+	FGameplayEffectContextHandle ContextHandle = WAbilitySystemComponent->MakeEffectContext();
 
-	HP += Health;
-	MaxHP += Health;
-	C_SetHealth(HP, MaxHP, CAdditionalHealth);
-}
+	FGameplayEffectSpecHandle SpecHandle = WAbilitySystemComponent->MakeOutgoingSpec(AddHealthEffectClass, 1.f, ContextHandle);
+	if (!SpecHandle.IsValid()) return;
 
-void AGamePlayerState::C_SetPower_Implementation(int32 NewPower)
-{
-	CPower = NewPower;
+	WAbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 }
 
 void AGamePlayerState::AddPower_Implementation(int32 Power)
 {
-	CPower += Power;
-	C_SetPower(CPower);
-}
+	FGameplayEffectContextHandle ContextHandle = WAbilitySystemComponent->MakeEffectContext();
 
-void AGamePlayerState::Server_ApplyDamage_Implementation(int32 Damage, AController* AttackPlayer, AActor* DamageCauser)
-{
-	if (HP > 0)
-	{
-		const float Reduction = CDefense / (CDefense + 100.f);
-		const int32 FinalDamage = StaticCast<int32>(Damage * (1.f - Reduction));
-		if (HP > FinalDamage)
-		{
-			if (Cast<AWCharacterBase>(DamageCauser))
-			{
-				if (AttackPlayer && Cast<AWCharacterBase>(AttackPlayer->GetPawn()))
-				{
-					AGamePlayerState* AttackPS = AttackPlayer->GetPlayerState<AGamePlayerState>();
-					AttackPS->PlayerDamageAmount += FinalDamage;
-				}
-			}
+	FGameplayEffectSpecHandle SpecHandle = WAbilitySystemComponent->MakeOutgoingSpec(AddAttackEffectClass, 1.f, ContextHandle);
+	if (!SpecHandle.IsValid()) return;
 
-			HP -= FinalDamage;
-		}
-		else
-		{
-			if (Cast<AWCharacterBase>(DamageCauser))
-			{
-				if (AttackPlayer && Cast<AWCharacterBase>(AttackPlayer->GetPawn()))
-				{
-					AGamePlayerState* AttackPS = AttackPlayer->GetPlayerState<AGamePlayerState>();
-					AttackPS->PlayerDamageAmount += HP;
-				}
-			}
-
-			HP = 0;
-		}
-        
-		if (HP <= 0)
-		{
-			AddDeathPoint(); // 데스 카운트 +1
-			
-			if (IsValid(AttackPlayer))
-			{
-				if (AWCharacterBase* AttackChar = Cast<AWCharacterBase>(AttackPlayer->GetPawn()))
-				{
-					AGamePlayerState* PS = AttackPlayer->GetPlayerState<AGamePlayerState>();
-					PS->AddKillPoint();
-					
-					if (APlayGameState* GS = Cast<APlayGameState>(GetWorld()->GetGameState()))
-					{
-						GS->CheckKilledTeam(PS->InGamePlayerInfo.PlayerTeam);
-					}
-				}                    
-			}
-            
-			AWCharacterBase* PlayCharacter = Cast<AWCharacterBase>(GetPawn());
-			if (PlayCharacter)
-			{
-				PlayCharacter->BeingDead();    // 캐릭터 사망처리
-			}
-		}
-	}
-}
-
-bool AGamePlayerState::Server_ApplyDamage_Validate(int32 Damage, AController* AttackPlayer, AActor* DamageCauser)
-{
-	return Damage >= 0;
+	WAbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 }
 
 void AGamePlayerState::Server_TakePlayerInfo_Implementation(const FString& PlayerName)
@@ -247,7 +165,8 @@ void AGamePlayerState::Server_TakePlayerInfo_Implementation(const FString& Playe
 		APlayGameMode* GM = Cast<APlayGameMode>(GetWorld()->GetAuthGameMode());
 		if (GM)
 		{
-			GM->RespawnPlayer(nullptr, GetPlayerController());
+			AGamePlayerController* PC = Cast<AGamePlayerController>(GetPlayerController());
+			GM->RespawnPlayer(nullptr, PC);
 		}
 	}
 }

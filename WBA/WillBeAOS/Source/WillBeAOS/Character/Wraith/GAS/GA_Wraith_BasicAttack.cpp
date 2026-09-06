@@ -174,6 +174,7 @@ void UGA_Wraith_BasicAttack::ServerApplyDamage(FHitResult HitResult)
 	if (!TargetASC) return;
 
 	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+	EffectContext.AddInstigator(Avatar, Avatar);
 	EffectContext.AddHitResult(HitResult);
 
 	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(Wraith_BasicAttack_Effect, 1.f, EffectContext);

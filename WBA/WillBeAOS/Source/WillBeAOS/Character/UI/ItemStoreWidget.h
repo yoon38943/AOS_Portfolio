@@ -15,8 +15,11 @@ class WILLBEAOS_API UItemStoreWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
 	AGamePlayerController* PC;
+	UPROPERTY()
 	AGamePlayerState* PS;
+	UPROPERTY()
 	APlayGameState* GS;
 
 	int32 G_Attack;

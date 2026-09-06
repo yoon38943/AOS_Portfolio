@@ -88,10 +88,10 @@ void UGA_Shinbi_ESkill::SpawnCircleWolves(FGameplayEventData Data)
 		if (DamageFieldClass)
 		{
 			ACircleDamageField* Field = GetWorld()->SpawnActor<ACircleDamageField>(
-			DamageFieldClass,
-			Avatar->GetActorLocation(),
-			Avatar->GetActorRotation()
-		);
+				DamageFieldClass,
+				Avatar->GetActorLocation(),
+				Avatar->GetActorRotation()
+			);
 
 			if (Field)
 			{
@@ -101,7 +101,7 @@ void UGA_Shinbi_ESkill::SpawnCircleWolves(FGameplayEventData Data)
 		}
 	}
 
-	ApplyCooldown();
+	CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfoRef());
 
 	if (ASC) ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.casting"));
 }
@@ -123,7 +123,8 @@ void UGA_Shinbi_ESkill::SpawnLensFlare()
 	);
 }
 
-void UGA_Shinbi_ESkill::ApplyCooldown()
+void UGA_Shinbi_ESkill::ApplyCooldown(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(CooldownEffectClass, 1.f);
 
@@ -131,12 +132,7 @@ void UGA_Shinbi_ESkill::ApplyCooldown()
 	{
 		SpecHandle.Data->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag("ability.data.cooldown"), CooldownTime);
 
-		ApplyGameplayEffectSpecToOwner(
-			GetCurrentAbilitySpecHandle(),
-			GetCurrentActorInfo(),
-			GetCurrentActivationInfoRef(),
-			SpecHandle
-		);
+		ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 	}
 }
 

@@ -91,7 +91,7 @@ void UGA_Wraith_SniperAttack::OnTargetDataReady(const FGameplayAbilityTargetData
 		ServerApplyDamage(HitResult);
 	}
 
-	ApplyCooldown();
+	CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfoRef());
 }
 
 void UGA_Wraith_SniperAttack::LineTraceHit(FVector TraceStart, FVector TraceEnd, FHitResult& HitResult)
@@ -160,6 +160,7 @@ void UGA_Wraith_SniperAttack::ServerApplyDamage(FHitResult HitResult)
 	if (!TargetASC) return;
 
 	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+	EffectContext.AddInstigator(Avatar, Avatar);
 	EffectContext.AddHitResult(HitResult);
 
 	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(Wraith_SniperAttack_Effect, 1.f, EffectContext);
@@ -174,7 +175,8 @@ void UGA_Wraith_SniperAttack::ServerApplyDamage(FHitResult HitResult)
 	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 }
 
-void UGA_Wraith_SniperAttack::ApplyCooldown()
+void UGA_Wraith_SniperAttack::ApplyCooldown(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(CooldownEffectClass, 1.f);
 
@@ -182,11 +184,6 @@ void UGA_Wraith_SniperAttack::ApplyCooldown()
 	{
 		SpecHandle.Data->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag("ability.data.cooldown"), CooldownTime);
 
-		ApplyGameplayEffectSpecToOwner(
-			GetCurrentAbilitySpecHandle(),
-			GetCurrentActorInfo(),
-			GetCurrentActivationInfoRef(),
-			SpecHandle
-		);
+		ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 	}
 }

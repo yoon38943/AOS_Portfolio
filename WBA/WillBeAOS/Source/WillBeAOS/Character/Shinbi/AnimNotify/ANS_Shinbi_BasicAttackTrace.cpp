@@ -47,6 +47,7 @@ void UANS_Shinbi_BasicAttackTrace::NotifyTick(USkeletalMeshComponent* MeshComp, 
 	Params.AddIgnoredActor(MeshComp->GetOwner());
 
 	ECollisionChannel EnemyCollision;
+	if (!Player) return;
 	if (Player->GetTeamID() == E_TeamID::Blue)
 	{
 		EnemyCollision = TeamCollision::RedTeam;

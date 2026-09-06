@@ -1,5 +1,6 @@
 #include "GAS/WAttributeSet.h"
 #include "GameplayEffectExtension.h"
+#include "Character/WCharacterBase.h"
 #include "Net/UnrealNetwork.h"
 
 void UWAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)
@@ -10,6 +11,11 @@ void UWAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)
 void UWAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UWAttributeSet, MaxHealth, OldValue);
+}
+
+void UWAttributeSet::OnRep_AddHealth(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UWAttributeSet, AddHealthStat, OldValue);
 }
 
 void UWAttributeSet::OnRep_AttackStat(const FGameplayAttributeData& OldValue)
@@ -33,6 +39,7 @@ void UWAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxHealth, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AddHealthStat, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AttackStat, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, DefenseStat, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, SpeedStat, COND_None, REPNOTIFY_Always);
@@ -51,14 +58,5 @@ void UWAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCa
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
 		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
-
-		if (Data.EvaluatedData.Magnitude < 0.f)
-		{
-			UAbilitySystemComponent* TargetASC = &Data.Target;
-
-			FGameplayTagContainer CancelTags;
-			CancelTags.AddTag(FGameplayTag::RequestGameplayTag("ability.state.recall"));
-			TargetASC->CancelAbilities(&CancelTags);
-		}
 	}
 }

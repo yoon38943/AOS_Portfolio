@@ -13,4 +13,6 @@ public:
 	UGE_ExecutionCalculation();
 
 	virtual void Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const override;
+
+	void SetAttacker(const FGameplayEffectCustomExecutionParameters& ExecutionParams) const;
 };

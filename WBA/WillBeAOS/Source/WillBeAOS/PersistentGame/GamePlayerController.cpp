@@ -101,14 +101,14 @@ void AGamePlayerController::Server_PossessControllerToCharacterSelect_Implementa
 	SpawnParams.Owner = this;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	/*APawn* NewCameraPawn = GetWorld()->SpawnActor<APawn>(SpawnCameraClass, PossessLocation, PossessRotation, SpawnParams);
+	APawn* NewCameraPawn = GetWorld()->SpawnActor<APawn>(SpawnCameraClass, PossessLocation, PossessRotation, SpawnParams);
 	if (NewCameraPawn)
 	{
 		// 4. 빙의 (서버에서 실행되므로 클라이언트로 자동 동기화됨)
 		this->SetViewTarget(NewCameraPawn);
         
 		UE_LOG(LogTemp, Warning, TEXT("캐릭터 선택 카메라 빙의 완료: %s"), *NewCameraPawn->GetName());
-	}*/
+	}
 }
 
 void AGamePlayerController::StartCharacterSelectPhase()
@@ -270,12 +270,11 @@ void AGamePlayerController::SetIsOpenStore_Implementation(bool CanOpen)
 	IsOpenedStore = CanOpen;
 }
 
-void AGamePlayerController::S_SetCurrentRespawnTime_Implementation()
+void AGamePlayerController::S_SetCurrentRespawnTime()
 {
 	if (APlayGameState* GameState = Cast<APlayGameState>(GetWorld()->GetGameState()))
 	{
 		CurrentRespawnTime = GameState->RespawnTime;
-		C_ReplicateCurrentRespawnTime(CurrentRespawnTime);
 	}
 }
 
@@ -347,7 +346,6 @@ void AGamePlayerController::UpdateRespawnWidget()
 	if (CurrentRespawnTime > 1)
 	{
 		CurrentRespawnTime--;
-		C_ReplicateCurrentRespawnTime(CurrentRespawnTime);
 	}
 	else
 	{
@@ -365,12 +363,7 @@ void AGamePlayerController::HideRespawnWidget_Implementation()
 	}
 }
 
-void AGamePlayerController::C_ReplicateCurrentRespawnTime_Implementation(int32 RespawnTime)
-{
-	CurrentRespawnTime = RespawnTime;
-}
-
-void AGamePlayerController::S_CountRespawnTime_Implementation()
+void AGamePlayerController::S_CountRespawnTime()
 {
 	GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle, this, &ThisClass::UpdateRespawnWidget, 1.f, true);
 }
@@ -447,4 +440,5 @@ void AGamePlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimePro
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ThisClass, CountdownTime);
+	DOREPLIFETIME(ThisClass, CurrentRespawnTime);
 }

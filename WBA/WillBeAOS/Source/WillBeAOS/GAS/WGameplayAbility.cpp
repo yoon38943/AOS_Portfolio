@@ -3,8 +3,6 @@
 #include "AbilitySystemComponent.h"
 #include "WAbilitySystemComponent.h"
 #include "Character/WCharacterBase.h"
-#include "Character/WCharAnimInstance.h"
-#include "PersistentGame/GamePlayerController.h"
 
 class UAnimInstance* UWGameplayAbility::GetOwnerAnimInstance() const
 {
@@ -17,18 +15,22 @@ class UAnimInstance* UWGameplayAbility::GetOwnerAnimInstance() const
 }
 
 void UWGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
+                                        const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+                                        const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 	{
-		ASC = Cast<UWAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
-		if (!ASC) return;
-		Avatar = Cast<AWCharacterBase>(GetAvatarActorFromActorInfo());
-		if (!Avatar) return;
+		ASC = Cast<UWAbilitySystemComponent>(ActorInfo->AbilitySystemComponent.Get());
+		Avatar = Cast<AWCharacterBase>(ActorInfo->AvatarActor.Get());
 
+		if (!ASC || !Avatar)
+		{
+			EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+			return;
+		}
+		
 		FGameplayTagContainer CancelTags;
 		CancelTags.AddTag(FGameplayTag::RequestGameplayTag(FName("ability.state.recall")));
 		ASC->CancelAbilities(&CancelTags, nullptr, this);

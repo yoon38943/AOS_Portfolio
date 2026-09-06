@@ -181,12 +181,16 @@ void USkillIconWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (!PlayerState)
+	if (!PlayerState && GetOwningPlayerPawn())
 	{
 		InitializeASC();
 	}
 	
-	if (!GetOwningPlayerPawn()->IsLocallyControlled()) return;
+	APawn* OwningPawn = GetOwningPlayerPawn();
+	if (!OwningPawn || !OwningPawn->IsLocallyControlled())
+	{
+		return;
+	}
 	if (!bIsCoolingDown) return;
 
 	if (bIsInternal)

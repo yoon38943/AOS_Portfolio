@@ -2,6 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "WAttributeSet.h"
+#include "Character/WCharacterBase.h"
 
 struct FDamageStatics
 {
@@ -41,6 +42,7 @@ void UGE_ExecutionCalculation::Execute_Implementation(const FGameplayEffectCusto
 	AActor* TargetAvatar = TargetASC ? TargetASC->GetAvatarActor() : nullptr;
 
 	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+	SetAttacker(ExecutionParams);
 
 	FAggregatorEvaluateParameters EvaluationParameters;
 	EvaluationParameters.SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
@@ -69,5 +71,22 @@ void UGE_ExecutionCalculation::Execute_Implementation(const FGameplayEffectCusto
 		);
 		UE_LOG(LogTemp, Warning, TEXT("%f"), FinalDamage);
 		OutExecutionOutput.AddOutputModifier(EvaluatedData);
+	}
+}
+
+void UGE_ExecutionCalculation::SetAttacker(const FGameplayEffectCustomExecutionParameters& ExecutionParams) const
+{
+	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+	AActor* InstigatorActor = Spec.GetEffectContext().GetInstigator();
+	if (InstigatorActor)
+	{
+		AWCharacterBase* AttackerChar = Cast<AWCharacterBase>(InstigatorActor);
+		if (AttackerChar)
+		{
+			if (AAOSCharacter* Target = Cast<AAOSCharacter>(ExecutionParams.GetTargetAbilitySystemComponent()->GetAvatarActor()))
+			{
+				Target->RegisterAttacker(AttackerChar->GetPlayerState<AGamePlayerState>());
+			}
+		}
 	}
 }

@@ -47,12 +47,29 @@ void ANexus::SetTeamCollision()
 
 void ANexus::DestroyNexus()
 {
+	APlayGameMode* GM = Cast<APlayGameMode>(GetWorld()->GetAuthGameMode());
+	if (GM)
+	{
+		GM->OnNexusDestroyed(TeamID);
+	}
+	
 	NM_DestroyNexus();
 }
 
 UAbilitySystemComponent* ANexus::GetAbilitySystemComponent() const
 {
 	return WAbilitySystemComponent;
+}
+
+void ANexus::OnHealthChanged(const FOnAttributeChangeData& Data)
+{
+	if (!HasAuthority()) return;
+
+	float Health = Data.NewValue;
+	if (Health <= 0.f)
+	{
+		DestroyNexus();
+	}
 }
 
 void ANexus::NM_DestroyNexus_Implementation()
@@ -101,6 +118,10 @@ void ANexus::BeginPlay()
 		WAbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, ActorName);
 		WAbilitySystemComponent->ApplyInitialEffects(InitialEffects);
 	}
+
+	WAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+		UWAttributeSet::GetHealthAttribute())
+		.AddUObject(this, &ThisClass::OnHealthChanged);
 
 	SetTeamCollision();
 }

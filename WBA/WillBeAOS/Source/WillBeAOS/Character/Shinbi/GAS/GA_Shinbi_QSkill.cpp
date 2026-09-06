@@ -18,7 +18,7 @@ void UGA_Shinbi_QSkill::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 	if (!CanActivateAbility(Handle, ActorInfo))
 	{
-		K2_EndAbility();
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
@@ -125,7 +125,7 @@ void UGA_Shinbi_QSkill::OnInputReleased(float TimeHeld)
 		WaitSpawnWolfEventTask->ReadyForActivation();
 	}
 
-	ApplyCooldown();
+	CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), ActivationInfo);
 }
 
 FGameplayTag UGA_Shinbi_QSkill::GetQSkillSpawnWolfEventTag()
@@ -157,7 +157,8 @@ void UGA_Shinbi_QSkill::SpawnDashRangeDecal()
 	}
 }
 
-void UGA_Shinbi_QSkill::ApplyCooldown()
+void UGA_Shinbi_QSkill::ApplyCooldown(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(CooldownEffectClass, 1.f);
 
@@ -165,12 +166,7 @@ void UGA_Shinbi_QSkill::ApplyCooldown()
 	{
 		SpecHandle.Data->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag("ability.data.cooldown"), CooldownTime);
 
-		ApplyGameplayEffectSpecToOwner(
-			GetCurrentAbilitySpecHandle(),
-			GetCurrentActorInfo(),
-			GetCurrentActivationInfoRef(),
-			SpecHandle
-		);
+		ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 	}
 }
 

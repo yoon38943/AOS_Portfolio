@@ -57,6 +57,8 @@ void AWolf::Explosion(const FVector& ImpactLocation)
 
 	Explode_Particle_Multicast(ImpactLocation);
 
+	if (!HasAuthority()) return;
+	
 	TArray<FOverlapResult> Overlaps;
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);

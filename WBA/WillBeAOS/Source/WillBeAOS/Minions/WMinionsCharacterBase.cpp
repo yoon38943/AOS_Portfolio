@@ -1,4 +1,6 @@
 #include "WMinionsCharacterBase.h"
+
+#include "AbilitySystemGlobals.h"
 #include "../Character/CombatComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/CapsuleComponent.h"
@@ -27,7 +29,7 @@ AWMinionsCharacterBase::AWMinionsCharacterBase()
 	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
 	WidgetComponent->SetupAttachment(GetMesh());
 	WidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 200.f));
-	WidgetComponent->SetVisibility(false);
+	WidgetComponent->SetVisibility(false, true);
 
 	WAbilitySystemComponent = CreateDefaultSubobject<UWAbilitySystemComponent>(TEXT("ASC"));
 	WAttributeSet = CreateDefaultSubobject<UWAttributeSet>(TEXT("AttributeSet"));
@@ -56,6 +58,27 @@ UAbilitySystemComponent* AWMinionsCharacterBase::GetAbilitySystemComponent() con
 	return WAbilitySystemComponent;
 }
 
+void AWMinionsCharacterBase::RegisterTagEvent()
+{
+	WAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+			UWAttributeSet::GetHealthAttribute()
+		).AddUObject(this, &AWMinionsCharacterBase::OnHealthAttributeChanged);
+}
+
+void AWMinionsCharacterBase::OnHealthAttributeChanged(const FOnAttributeChangeData& Data)
+{
+	if (!HasAuthority()) return;
+
+	if (bIsDead) return;
+	
+	float NewHealth = Data.NewValue;
+	if (NewHealth <= 0.f)
+	{
+		bIsDead = true;
+		Dead();
+	}
+}
+
 void AWMinionsCharacterBase::HandleGameEnd()
 {
 	if (AAIController* AICon = Cast<AAIController>(GetController()))
@@ -72,14 +95,14 @@ void AWMinionsCharacterBase::BeginPlay()
 	Super::BeginPlay();
 
 	WAbilitySystemComponent->InitAbilityActorInfo(this, this);
-	
-	CombatComponent->DelegateDead.BindUObject(this, &ThisClass::Dead);
 
 	APlayGameMode* GM = Cast<APlayGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 	if (GM)
 	{
 		GM->OnGameEnd.AddUObject(this, &ThisClass::HandleGameEnd);
 	}
+
+	RegisterTagEvent();
 
 	SetTeamCollision();
 	FindPlayerPC();
@@ -91,6 +114,9 @@ void AWMinionsCharacterBase::BeginPlay()
 		{
 			GS->GameManagedActors.AddUnique(this);
 		}
+
+		FGameplayAbilitySpec Spec(Minion_BasicAttack_Class, 1, INDEX_NONE, this);
+		WAbilitySystemComponent->GiveAbility(Spec);
 
 		WAbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, CharacterName);
 		WAbilitySystemComponent->ApplyInitialEffects(InitialEffects);
@@ -244,7 +270,7 @@ void AWMinionsCharacterBase::Dead()
 	APlayGameMode* GameMode = Cast<APlayGameMode>(GetWorld()->GetAuthGameMode());
 	if (GameMode)
 	{
-		GameMode->OnObjectKilled(this, LastHitBy);
+		GameMode->OnObjectKilled(this, LastHitAttacker.Get());
 	}
 
 	// CheckDistance 셋타이머 끄기
@@ -261,7 +287,10 @@ void AWMinionsCharacterBase::Dead()
 	
 	// AI가 죽으면 BT 연결 끊기
 	AWMinionsAIController* MinionController = Cast<AWMinionsAIController>(GetController());
-	MinionController->GetBrainComponent()->StopLogic(TEXT("None"));
+	if (MinionController)
+	{
+		MinionController->GetBrainComponent()->StopLogic(TEXT("None"));
+	}
 
 	bIsDead = true;
 
@@ -278,22 +307,26 @@ void AWMinionsCharacterBase::NM_BeingDead_Implementation()
 {
 	//콜리전 없애기
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetTeamIDCollision()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 	GetMesh()->SetSimulatePhysics(true);
 
+	// 죽는 애니메이션 실행
+	//PlayAnimMontage(DeadAnimMontage);
+
 	if (!HasAuthority())
 	{
-		// 죽는 애니메이션 실행
-		PlayAnimMontage(DeadAnimMontage);
-
 		// HP Widget 없애기
-		WidgetComponent->SetVisibility(false);
+		WidgetComponent->SetHiddenInGame(true);
 	}
 }
 
 void AWMinionsCharacterBase::NM_Minion_Attack_Implementation()
 {
-	PlayAnimMontage(MinionAttackMontage);
+	if (WAbilitySystemComponent)
+	{
+		WAbilitySystemComponent->TryActivateAbilityByClass(Minion_BasicAttack_Class);
+	}
 }
 
 void AWMinionsCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps)const

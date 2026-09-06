@@ -71,6 +71,34 @@ UAbilitySystemComponent* ATower::GetAbilitySystemComponent() const
 	return WAbilitySystemComponent;
 }
 
+void ATower::RegisterTagEvent()
+{
+	WAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+		UWAttributeSet::GetHealthAttribute())
+		.AddUObject(this, &ATower::OnHealthChange);
+}
+
+void ATower::OnHealthChange(const FOnAttributeChangeData& Data)
+{
+	if (!HasAuthority()) return;
+
+	float NewHealth = Data.NewValue;
+	bool bFound;
+	float MaxHealth = WAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetMaxHealthAttribute(), bFound);
+	if (!bFound) return;
+
+	if (NewHealth <= 0)
+	{
+		AddGoldToEnemyPlayer();
+		TowerDestroyMulticast();
+	}
+	else if (NewHealth <= MaxHealth / 2)
+	{
+		AddGoldToEnemyPlayer();
+		S_SetDamaged();
+	}
+}
+
 void ATower::BeginPlay()
 {
 	Super::BeginPlay();
@@ -99,6 +127,7 @@ void ATower::BeginPlay()
 		}
 	}
 
+	RegisterTagEvent();
 	SetTeamCollision();
 }
 
@@ -228,11 +257,14 @@ void ATower::OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActo
 	if (OverlappingActors.IsEmpty())
 	{
 		Delta = 0;
-		NiagaraComponent->SetVisibility(false);
+		if (!HasAuthority())
+		{
+			NiagaraComponent->SetVisibility(false);
+		}
 	}
 }
 
-void ATower::TowerDestroyInClient_Implementation()
+void ATower::TowerDestroyMulticast_Implementation()
 {
 	if (IsValid(StaticMesh))
 	{

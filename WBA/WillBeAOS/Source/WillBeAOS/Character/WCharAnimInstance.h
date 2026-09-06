@@ -106,7 +106,6 @@ public:
 	bool bShouldResetRootYawOffset = false;
 	float ResetTimer = 0.f;
 	void ResetRootYawOffset(float DeltaTime);
-	
 
 protected:
 
@@ -143,6 +142,9 @@ protected:
 	bool bIsCombat = false;
 
 	UPROPERTY(BlueprintReadOnly)
+	bool bIsDead = false;
+
+	UPROPERTY(BlueprintReadOnly)
 	UAbilitySystemComponent* OwnerASC;
 
 	virtual void NativeInitializeAnimation() override;
@@ -162,6 +164,9 @@ protected:
 
 	UFUNCTION()
 	void OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	UFUNCTION()
+	void OnDeathTagChanged(const FGameplayTag Tag, int32 NewCount);
 
 	// 파츠 Loop
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")

@@ -31,8 +31,7 @@ void UGA_Shinbi_RMSkill::PerformDash()
 		GetWorld()->GetTimerManager().SetTimer(ReactivationTimer, [this]()
 		{
 			FGameplayAbilityActivationInfo ActivationInfo = GetCurrentActivationInfo();
-			CommitAbilityCooldown(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), ActivationInfo, false);
-			ApplyCooldown();
+			CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), ActivationInfo);
 			
 			EndDashAbility();
 		}, ReactivationTime, false);
@@ -43,7 +42,7 @@ void UGA_Shinbi_RMSkill::PerformDash()
 	{
 		FGameplayAbilityActivationInfo ActivationInfo = GetCurrentActivationInfo();
 		CommitAbilityCooldown(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), ActivationInfo, false);
-		ApplyCooldown();
+		CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), ActivationInfo);
 		
 		DashMontageEnded = true;
 		StartDash();
@@ -162,20 +161,16 @@ void UGA_Shinbi_RMSkill::OnNextDashInput(float TimeWaited)
 	PerformDash();
 }
 
-void UGA_Shinbi_RMSkill::ApplyCooldown()
+void UGA_Shinbi_RMSkill::ApplyCooldown(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(CooldownEffectClass, 1.f);
+	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, CooldownEffectClass, 1.f);
 
 	if (SpecHandle.IsValid())
 	{
 		SpecHandle.Data->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag("ability.data.cooldown"), CooldownTime);
 
-		ApplyGameplayEffectSpecToOwner(
-			GetCurrentAbilitySpecHandle(),
-			GetCurrentActorInfo(),
-			GetCurrentActivationInfoRef(),
-			SpecHandle
-		);
+		ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 	}
 }
 

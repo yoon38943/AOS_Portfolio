@@ -23,8 +23,8 @@ void UMainMenuWidget::NativeConstruct()
 	{
 		GameInstance->OnLoginCompleted.AddUObject(this, &ThisClass::LoginCompleted);
 
-		//GameInstance->AutoLogin();
-		GameInstance->ManualLogin();
+		GameInstance->AutoLogin();
+		//GameInstance->ManualLogin();
 		
 		if (GameInstance->IsLoggedIn())
 		{

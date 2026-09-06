@@ -50,5 +50,5 @@ private:
 
 	void SpawnQSkillBomb(FVector TraceStart, FVector TraceEnd);
 
-	void ApplyCooldown();
+	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;;
 };

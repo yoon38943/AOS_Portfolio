@@ -39,5 +39,5 @@ private:
 	void SpawnFakeBulletCue(FVector StrikePoint);
 	void SpawnHitParticle(FHitResult HitResult);
 	void ServerApplyDamage(FHitResult HitResult);
-	void ApplyCooldown();
+	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;;
 };

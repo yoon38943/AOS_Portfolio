@@ -125,9 +125,8 @@ public:	//상점 관련
 	
 
 public://리스폰
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Replicated)
 	int32 CurrentRespawnTime;
-	UFUNCTION(Server, Reliable)
 	void S_SetCurrentRespawnTime();
 	FTimerHandle RestartTimer;
 	FTimerHandle RespawnTimerHandle;
@@ -139,11 +138,8 @@ public://리스폰 함수(PlayerController->GameHasEnded())
 	UFUNCTION(NetMulticast, Reliable)
 	void GameEnded(E_TeamID LoseTeam);
 	void ShowRespawnWidget();
-	UFUNCTION(Server, Reliable)
 	void S_CountRespawnTime();
 	void UpdateRespawnWidget();
-	UFUNCTION(Client, Reliable)
-	void C_ReplicateCurrentRespawnTime(int32 RespawnTime);
 	UFUNCTION(Client, Reliable)
 	void HideRespawnWidget();
 

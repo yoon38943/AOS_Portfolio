@@ -16,9 +16,9 @@ AAOSCharacter::AAOSCharacter()
 	GetMesh()->SetReceivesDecals(false);
 }
 
-UCapsuleComponent* AAOSCharacter::GetTeamIDCollision()
+void AAOSCharacter::RegisterAttacker(AGamePlayerState* NewAttacker)
 {
-	return TeamTraceCollision;
+	LastHitAttacker = NewAttacker;
 }
 
 void AAOSCharacter::BeginPlay()

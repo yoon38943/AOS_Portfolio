@@ -16,12 +16,21 @@ void UWCharAnimInstance::RegisterTagEvent()
 		FGameplayTag::RequestGameplayTag("state.combat"),
 		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &UWCharAnimInstance::OnCombatTagChanged);
 
+	OwnerASC->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag("state.death"),
+		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &UWCharAnimInstance::OnDeathTagChanged);
+
 	BindCheckRecallTag();
 }
 
 void UWCharAnimInstance::OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
 	bIsCombat = NewCount > 0;
+}
+
+void UWCharAnimInstance::OnDeathTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	bIsDead = NewCount > 0;
 }
 
 void UWCharAnimInstance::UpdateVelocityData()
@@ -204,7 +213,10 @@ void UWCharAnimInstance::PropertyAccess()
 		CachedVelocity = TryGetPawnOwner()->GetVelocity();
 		CachedAimPitch = TryGetPawnOwner()->GetBaseAimRotation().Pitch;
 	}
-	if (WCharBase) CachedAcceleration = WCharBase->GetCharacterMovement()->GetCurrentAcceleration();
+	if (WCharBase)
+	{
+		CachedAcceleration = WCharBase->GetCharacterMovement()->GetCurrentAcceleration();
+	}
 }
 
 void UWCharAnimInstance::CaculateLocomotionDirection()
@@ -333,6 +345,14 @@ void UWCharAnimInstance::BindCheckRecallTag()
 void UWCharAnimInstance::OnRecallTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
 {
 	bIsRecalling = NewCount > 0;
+
+	if (NewCount == 0)
+	{
+		CachedActorRotation = GetOwningActor()->GetActorRotation();
+		WorldRotation = CachedActorRotation;
+		DeltaYawSincelastUpdate = 0.f;
+		SetRootYawOffset(0.f);
+	}
 }
 
 void UWCharAnimInstance::UpdateSkillLoopingParts(UAnimationAsset* NewLoopingAnimation)

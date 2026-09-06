@@ -5,6 +5,8 @@
 #include "Interface/GetInfoInterface.h"
 #include "AOSCharacter.generated.h"
 
+class AGamePlayerState;
+
 UCLASS()
 class WILLBEAOS_API AAOSCharacter : public ACharacter, public IGetInfoInterface
 {
@@ -20,7 +22,7 @@ protected:
 public:
 	AAOSCharacter();
 
-	UCapsuleComponent* GetTeamIDCollision();
+	UCapsuleComponent* GetTeamIDCollision() const { return TeamTraceCollision; }
 
 	UPROPERTY(BlueprintReadWrite)
 	class ATower* TowerWithCharacterInside;
@@ -30,6 +32,11 @@ public:
 
 	virtual E_TeamID GetTeamID() const override { return TeamID; }
 	virtual void SetTeamID(E_TeamID NewTeam) override { TeamID = NewTeam; }
+
+	UPROPERTY()
+	TWeakObjectPtr<AGamePlayerState> LastHitAttacker;
+
+	void RegisterAttacker(AGamePlayerState* NewAttacker);
 	
 	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Gold")
 	int32 GoldReward = 0;
@@ -52,5 +59,4 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	
 };

@@ -18,6 +18,7 @@ class WILLBEAOS_API UWAttributeSet : public UAttributeSet
 public:
 	ATTRIBUTE_ACCESSORS(UWAttributeSet, Health)	
 	ATTRIBUTE_ACCESSORS(UWAttributeSet, MaxHealth)
+	ATTRIBUTE_ACCESSORS(UWAttributeSet, AddHealthStat)
 	ATTRIBUTE_ACCESSORS(UWAttributeSet, AttackStat)
 	ATTRIBUTE_ACCESSORS(UWAttributeSet, DefenseStat)
 	ATTRIBUTE_ACCESSORS(UWAttributeSet, SpeedStat)
@@ -34,13 +35,16 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_MaxHealth)
 	FGameplayAttributeData MaxHealth;
 
+	UPROPERTY(ReplicatedUsing = OnRep_AddHealth)
+	FGameplayAttributeData AddHealthStat;
+
 	UPROPERTY(ReplicatedUsing = OnRep_AttackStat)
 	FGameplayAttributeData AttackStat;
 
-	UPROPERTY(ReplicatedUsing = OnRep_AttackStat)
+	UPROPERTY(ReplicatedUsing = OnRep_DefenseStat)
 	FGameplayAttributeData DefenseStat;
 
-	UPROPERTY(ReplicatedUsing = OnRep_AttackStat)
+	UPROPERTY(ReplicatedUsing = OnRep_SpeedStat)
 	FGameplayAttributeData SpeedStat;
 
 	UFUNCTION()
@@ -48,6 +52,9 @@ public:
 
 	UFUNCTION()
 	void OnRep_MaxHealth(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_AddHealth(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
 	void OnRep_AttackStat(const FGameplayAttributeData& OldValue);

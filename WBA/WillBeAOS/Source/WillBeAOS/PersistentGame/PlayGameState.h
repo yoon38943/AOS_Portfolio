@@ -67,6 +67,7 @@ public:
 	void UpdateCountdown();
 
 	// 플레이어 맵 로드 완료
+	UPROPERTY()
 	TArray<AGamePlayerController*> ReadyPlayers;
 	
 	void CheckPlayerIsReady(AGamePlayerController* PC);

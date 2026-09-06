@@ -3,7 +3,10 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "Blueprint/UserWidget.h"
 #include "Character/WCharacterBase.h"
+#include "Character/WCharAnimInstance.h"
+#include "GameFramework/PlayerStart.h"
 #include "Gimmick/PlayerSpawner.h"
+#include "Kismet/GameplayStatics.h"
 #include "PersistentGame/GamePlayerController.h"
 #include "PersistentGame/GamePlayerState.h"
 #include "Widget/RecallWidget.h"
@@ -14,6 +17,12 @@ void UGA_All_Character_Recall::ActivateAbility(const FGameplayAbilitySpecHandle 
                                                const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+	if (RecallEffectClass)
+	{
+		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+		ASC->ApplyGameplayEffectToSelf(RecallEffectClass.GetDefaultObject(), 1.0f, Context);
+	}
 	
 	if (Avatar)
 	{
@@ -21,58 +30,37 @@ void UGA_All_Character_Recall::ActivateAbility(const FGameplayAbilitySpecHandle 
 		CompleteRecallMontage = Avatar->GetCompleteRecallMontage();
 		RecallCueTag = Avatar->GetRecallCueTag();
 	}
+	
+	Avatar->IsRecalling = true;
+	
+	Avatar->MultiPlayMontage(RecallMontage);
 
-	if (HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
-	{
-		Avatar->IsRecalling = true;
-		
-		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, RecallMontage);
-		MontageTask->OnCancelled.AddDynamic(this, &ThisClass::K2_EndAbility);
-		MontageTask->ReadyForActivation();
+	GetWorld()->GetTimerManager().SetTimer(RecallTimerHandle, this, &ThisClass::CompleteRecall, RecallTime, false);
 
-		GetWorld()->GetTimerManager().SetTimer(RecallTimerHandle, this, &ThisClass::CompleteRecall, RecallTime, false);
-	}
-
-	if (!K2_HasAuthority())
-	{
-		CallRecall_Client();
-	}
+	Avatar->StartRecall(RecallWidgetClass, RecallTime);
 
 	if (ASC && HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 		ASC->AddGameplayCue(RecallCueTag);
-
-	UAbilityTask_WaitInputPress* WaitInputTask = UAbilityTask_WaitInputPress::WaitInputPress(this);
-	WaitInputTask->OnPress.AddDynamic(this, &ThisClass::OnRecallPressAgain);
-	WaitInputTask->ReadyForActivation();
 }
 
-void UGA_All_Character_Recall::CallRecall_Client()
+void UGA_All_Character_Recall::CancelAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+	bool bReplicateCancelAbility)
 {
-	if (IsLocallyControlled())
-	{
-		ShowRecallWidget();
-	}
+	Super::CancelAbility(Handle, ActorInfo, ActivationInfo, bReplicateCancelAbility);
 }
 
 void UGA_All_Character_Recall::CompleteRecall()
 {
 	Avatar->IsRecalling = false;
+	
+	RecallToBase();
 
-	if (K2_HasAuthority())
-	{
-		RecallToBase();
-	}
-	else
-	{
-		if (IsLocallyControlled())
-		{
-			HideRecallWidget();
-		}
+	Avatar->EndRecall();
 		
-		if (Avatar && CompleteRecallMontage)
-		{
-			Avatar->PlayAnimMontage(CompleteRecallMontage);
-		}
+	if (Avatar && CompleteRecallMontage)
+	{
+		Avatar->MultiPlayMontage(CompleteRecallMontage);
 	}
 
 	K2_EndAbility();
@@ -80,55 +68,44 @@ void UGA_All_Character_Recall::CompleteRecall()
 
 void UGA_All_Character_Recall::RecallToBase()
 {
-	AGamePlayerController* Controller = Cast<AGamePlayerController>(Avatar->GetController());
-	if (!Controller) return;
-
-	AGamePlayerState* WPlayerState = Cast<AGamePlayerState>(Controller->PlayerState);
-	if (!WPlayerState) return;
-	
-	if (Avatar && WPlayerState->PlayerSpawner)
+	if (GetWorld()->IsPlayInEditor())
 	{
-		Avatar->SetActorLocation(WPlayerState->PlayerSpawner->GetActorLocation());
-		FRotator LookCenter = (FVector(0, 0, 100) - Avatar->GetActorLocation()).Rotation();
-		Avatar->SetActorRotation(LookCenter);
-		Avatar->GetController()->SetControlRotation(LookCenter);
-	}
-}
+		TArray<AActor*> FoundPlayerStarts;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), FoundPlayerStarts);
 
-void UGA_All_Character_Recall::ShowRecallWidget()
-{
-	if (RecallWidgetClass && !RecallWidget)
-	{
-		RecallWidget = CreateWidget<URecallWidget>(Cast<AGamePlayerController>(Avatar->GetController()), RecallWidgetClass);
-		if (RecallWidget)
+		for (AActor* Actor : FoundPlayerStarts)
 		{
-			RecallWidget->RecallTime = RecallTime;
-			RecallWidget->StartRecalling();
-			RecallWidget->AddToViewport();
+			APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
+			if (PlayerStart)
+			{
+				Avatar->TeleportTo(PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation());
+				Avatar->MultiClientSetRotation(PlayerStart->GetActorRotation());
+				break;
+			}
 		}
 	}
-}
-
-void UGA_All_Character_Recall::HideRecallWidget()
-{
-	if (RecallWidget && RecallWidget->IsInViewport())
+	else
 	{
-		RecallWidget->RemoveFromParent();
-		RecallWidget = nullptr;
+		AGamePlayerController* Controller = Cast<AGamePlayerController>(Avatar->GetController());
+		if (!Controller) return;
+		
+		AGamePlayerState* WPlayerState = Cast<AGamePlayerState>(Controller->PlayerState);
+		if (!WPlayerState) return;
+	
+		if (Avatar && WPlayerState->PlayerSpawner)
+		{
+			FRotator LookCenter = (FVector(0, 0, 100) - Avatar->GetActorLocation()).Rotation();
+			Avatar->TeleportTo(WPlayerState->PlayerSpawner->GetActorLocation(), LookCenter);
+			Avatar->MultiClientSetRotation(LookCenter);
+		}
 	}
-}
-
-void UGA_All_Character_Recall::OnRecallPressAgain(float TimeElapsed)
-{
-	K2_CancelAbility();
 }
 
 void UGA_All_Character_Recall::EndAbility(const FGameplayAbilitySpecHandle Handle,
                                           const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
                                           bool bReplicateEndAbility, bool bWasCancelled)
 {
-	HideRecallWidget();
-
+	Avatar->EndRecall();
 	Avatar->IsRecalling = false;
 
 	if (ASC && HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
@@ -136,6 +113,10 @@ void UGA_All_Character_Recall::EndAbility(const FGameplayAbilitySpecHandle Handl
 	
 	if (RecallTimerHandle.IsValid())
 		GetWorld()->GetTimerManager().ClearTimer(RecallTimerHandle);
+
+	FGameplayTagContainer TagContainer;
+	TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("ability.state.recall")));
+	ASC->RemoveActiveEffectsWithGrantedTags(TagContainer);
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

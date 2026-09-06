@@ -4,6 +4,8 @@
 #include "GameFramework/GameMode.h"
 #include "PlayGameMode.generated.h"
 
+class UGameplayEffect;
+class AWCharacterBase;
 class IGetInfoInterface;
 enum class E_TeamID : uint8;
 class AGamePlayerState;
@@ -18,6 +20,7 @@ class WILLBEAOS_API APlayGameMode : public AGameMode
 
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 
+	UPROPERTY()
 	APlayGameState* GS;
 
 	virtual void BeginPlay() override;
@@ -73,6 +76,7 @@ public:
 	
 	void SetGSPlayerControllers();
 
+	UPROPERTY()
 	TArray<class APlayerSpawner*> PlayerSpawners;
 	void GetPlayerSpawners();
 	void SetPlayerSpawners(AGamePlayerState* PlayerState);
@@ -91,6 +95,7 @@ public:
 	void SpawnMinions();
 	
 private:
+	UPROPERTY()
 	TMap<AActor*, int32> TeamMap;      // 팀정보 맵
 public:
 	// 팀 할당
@@ -110,13 +115,18 @@ protected:
 
 
 public:
-	// 스폰 함수
+	// 스폰 관련
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
+	
+	FTimerHandle SpawnTimerHandle;
+	void SetResapwnPlayerTimer(AWCharacterBase* Player, AGamePlayerController* PlayerController, float RespawnTime);
 	UFUNCTION()
-	void RespawnPlayer(APawn* Player, AController* PlayerController);
+	void RespawnPlayer(AWCharacterBase* Player, AGamePlayerController* PC);
 
 	// 몬스터 사망시 이벤트
 	UFUNCTION()
-	void OnObjectKilled(TScriptInterface<IGetInfoInterface> DestroyedObject, AController* Killer);
+	void OnObjectKilled(TScriptInterface<IGetInfoInterface> DestroyedObject, AGamePlayerState* KillerPS);
 
 	// 넥서스 파괴
 	void OnNexusDestroyed(E_TeamID LoseTeam);

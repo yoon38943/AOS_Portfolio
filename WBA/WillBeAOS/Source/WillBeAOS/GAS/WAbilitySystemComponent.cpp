@@ -3,14 +3,14 @@
 #include "StatDataTable.h"
 
 
-void UWAbilitySystemComponent::SetIsNotStartGame()
+void UWAbilitySystemComponent::SetIsNotGameStart()
 {
-	bIsStartGame = false;
+	bIsGameStart = false;
 }
 
 void UWAbilitySystemComponent::ApplyInitialStat(TObjectPtr<UDataTable> StatTable, TSubclassOf<UGameplayEffect> InitialEffect, FName ObjectName)
 {
-	if (!bIsStartGame) return;
+	if (!bIsGameStart) return;
 	
 	if (!StatTable) return;
 
@@ -46,7 +46,7 @@ void UWAbilitySystemComponent::ApplyInitialEffects(TArray<TSubclassOf<UGameplayE
 
 void UWAbilitySystemComponent::GiveInitialAbilities(TMap<EWAbilityInputID, TSubclassOf<UGameplayAbility>> Abilities, TMap<EWAbilityInputID, TSubclassOf<UGameplayAbility>> BasicAbilities)
 {
-	if (!bIsStartGame) return;
+	if (!bIsGameStart) return;
 	
 	if (!GetOwner() || !GetOwner()->HasAuthority())	return;
 

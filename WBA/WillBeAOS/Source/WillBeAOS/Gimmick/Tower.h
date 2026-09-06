@@ -51,6 +51,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
 
+	void RegisterTagEvent();
+
+	void OnHealthChange(const FOnAttributeChangeData& Data);
+	
 	
 public:
 	UFUNCTION(Server, Reliable)
@@ -64,7 +68,7 @@ public:
 	void NM_SetDamaged();
 
 	UFUNCTION(NetMulticast, Reliable)
-	void TowerDestroyInClient();
+	void TowerDestroyMulticast();
 	
 public://스폰
 	float Delta;
@@ -99,7 +103,6 @@ public:
 	UPROPERTY(EditAnywhere)
 	UParticleSystem* DestroyParticle;
 	
-	bool IsParticleSpawned = false;
 
 public://타격 관련
 	UPROPERTY(BlueprintReadWrite, Category = SpawnActor)

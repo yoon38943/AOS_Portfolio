@@ -10,10 +10,10 @@ class WILLBEAOS_API UWAbilitySystemComponent : public UAbilitySystemComponent
 {
 	GENERATED_BODY()
 
-	bool bIsStartGame = true;
+	bool bIsGameStart = true;
 
 public:
-	void SetIsNotStartGame();
+	void SetIsNotGameStart();
 	
 	void ApplyInitialStat(TObjectPtr<UDataTable> StatTable, TSubclassOf<UGameplayEffect> InitialEffect, FName ObjectName);
 

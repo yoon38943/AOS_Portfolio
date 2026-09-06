@@ -56,5 +56,5 @@ private:
 
 	float CooldownTime = 8.f;  // 나중에 레벨별 쿨다운으로 변경해보기
 
-	void ApplyCooldown();
+	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
 };

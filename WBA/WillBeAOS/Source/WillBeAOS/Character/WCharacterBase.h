@@ -8,6 +8,7 @@
 #include "Interface/VisibleSightInterface.h"
 #include "Struct_Enum/WalkSpeedStruct.h"
 #include "AbilitySystemInterface.h"
+#include "GameplayAbilitySpecHandle.h"
 #include "GameplayTagContainer.h"
 #include "GAS/UWGameplayAbilityTypes.h"
 #include "Interface/Interface_CharacterAction.h"
@@ -15,6 +16,8 @@
 
 #define PLAYERKILLGOLD 100
 
+class URecallWidget;
+struct FOnAttributeChangeData;
 class UGameplayEffect;
 class AWPlayerState;
 struct FGameplayTag;
@@ -45,7 +48,7 @@ public:
 
 
 	bool bIsCombat;
-	
+	bool bHasBoundAttributeDelegate = false;
 	virtual void RegisterTagEvent();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
@@ -56,6 +59,8 @@ public:
 
 	UFUNCTION()
 	void OnRecallTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	void OnHealthAttributeChanged(const FOnAttributeChangeData& Data);
 	
 protected:
 	//컴포넌트
@@ -146,6 +151,8 @@ public:
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
+	UWAbilitySystemComponent* GetASC() const { return AbilitySystemComponent; }
+
 protected:
 	UPROPERTY()
 	UWAbilitySystemComponent* AbilitySystemComponent;
@@ -177,11 +184,15 @@ public:
 	UDecalComponent* SkillForwardDecal;
 
 	void MoveDecalToCameraForward();
+
+	FTimerHandle ZoomTimer;
 	
 public:
+	UPROPERTY()
+	TSubclassOf<UWCharAnimInstance> AnimInstanceClass;
 	UPROPERTY(BlueprintReadOnly)
 	UWCharAnimInstance* Anim;
-	UPROPERTY(BlueprintReadWrite, Category = "Health")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Gameplay Ability")
 	UAnimMontage* DeadAnimMontage;
 	UPROPERTY(BlueprintReadWrite, Category = "Health")
 	UAnimMontage* HitAnimMontage;
@@ -199,7 +210,7 @@ public:
 	float MouseSensitivityMultiply = 1.f;
 	FMovementSpeedStruct MovementSpeedData;
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
 	void UpdateMovementSpeedData(float Multiplier);
 	void UpdateAcceleration();
 
@@ -207,15 +218,22 @@ public:
 	void Server_SetControlRotationYaw(FRotator YawRotation);
 	
 	// ---- 귀환 관련 함수 ----
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TSubclassOf<UGameplayAbility> RecallAbilityClass;
+	
 	UPROPERTY(Replicated)
 	bool IsRecalling;
+
+	UPROPERTY()
+	URecallWidget* RecallWidget;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Recall")
 	FGameplayTag RecallCueTag;
 
 	FGameplayTag GetRecallCueTag() const { return RecallCueTag; }
 
-	void RecallAbilityInputPressed(const FInputActionValue& Value, TSubclassOf<UGameplayAbility> AbilityClass);
+	UFUNCTION()
+	void RecallAbilityInputPressed(const FInputActionValue& Value);
 
 	UPROPERTY(EditAnywhere, Category = "Recall")
 	UAnimMontage* StartRecallMontage;
@@ -224,9 +242,26 @@ public:
 
 	UAnimMontage* GetStartRecallMontage() const { return StartRecallMontage; }
 	UAnimMontage* GetCompleteRecallMontage() const { return CompleteRecallMontage; }
+
+	FGameplayAbilitySpecHandle RecallAbilitySpecHandle;
+
+	UFUNCTION(Server, Reliable)
+	void Server_StartRecall();
+	UFUNCTION(Server, Reliable)
+	void Server_CancelRecall();
+
+	UFUNCTION(Client, Reliable)
+	void StartRecall(TSubclassOf<UUserWidget> RecallWidgetClass, float RecallTime);
+	UFUNCTION(Client, Reliable)
+	void EndRecall();
 	
 	UFUNCTION(NetMulticast, Reliable)
 	void MultiPlayMontage(UAnimMontage* Montage);
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiStopPlayMontage();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiClientSetRotation(FRotator TargetRotation);
 
 	FTimerHandle RecallZoomTimer;
 	void UpdateRecallZoom();
@@ -287,25 +322,26 @@ public:
 	virtual void ExecuteSkill(ESkillSlot SkillSlot);
 
 	// ---- 골드 관련 ----
-	virtual void SetGoldReward(int32 NewGold) override {GoldReward = NewGold;}
+	virtual void SetGoldReward(int32 NewGold) override { GoldReward = NewGold; }
+
+	// Death 관련
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TSubclassOf<UGameplayAbility> DeathAbilityClass;
 	
-	// ---- Dead 관련 함수 -----
-	UFUNCTION(Server, Reliable)
-	void S_BeingDead(class AGamePlayerController* PC, APawn* Player);
-	// 일반 죽는 함수(죽는 클라이언트 본인만 실행되도록)
-	void BeingDead();
-	// 클라이언트
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TSubclassOf<UGameplayEffect> DeathEffectClass;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Dead_Multicast();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Respawn_Multicast(FVector NewLocation, FRotator NewRotation);
+	
 	UFUNCTION(Client, Reliable)
-	void C_BeingDead(AGamePlayerController* PC);
+	void Respawn_Client();
 
-	// 델리게이트 함수
-	UFUNCTION(NetMulticast, Reliable, BlueprintCallable, Category = Dead)
-	void NM_BeingDead();//죽을 때 델리게이트로 호출 함수
-	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void HandleApplyPointDamage(FHitResult LastHit);//?�인???��?지�?줄시 ?�리게이?�로 ?�출???�수
-	UFUNCTION(BlueprintCallable, Category = "Combat")//TakeDamage ?�수 ?�버?�이??
-	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
-
+	void ResetIMCOnRespawn();
+	
 	void ClearLastHitBy();
 
 	//게임 엔딩

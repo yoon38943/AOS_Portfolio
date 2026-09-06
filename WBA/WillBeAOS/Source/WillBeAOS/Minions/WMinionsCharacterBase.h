@@ -8,6 +8,7 @@
 
 #define MINIONKILLGOLD 30
 
+class UGameplayAbility;
 class UGameplayEffect;
 class UAbilitySystemComponent;
 class UWAttributeSet;
@@ -58,6 +59,10 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
 	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
+
+	void RegisterTagEvent();
+	
+	void OnHealthAttributeChanged(const FOnAttributeChangeData& Data);
 
 public:
 	// ----- HP 위젯 조절 함수 -----
@@ -112,7 +117,8 @@ public:	//골드 관련
 	virtual void SetGoldReward(int32 NewGold){GoldReward = NewGold;}
 	
 public:	//타격 관련
-	AController* LastHitBy;		// 마지막 타격 주체 저장
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Ability")
+	TSubclassOf<UGameplayAbility> Minion_BasicAttack_Class;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UAnimMontage* MinionAttackMontage;
@@ -127,7 +133,7 @@ public:	//체력관련
 	void SetHPbarColor(FLinearColor HealthBarColor);
 
 public: //죽을 때
-	UPROPERTY(BlueprintReadWrite, Category = Dead)
+	UPROPERTY(EditDefaultsOnly, Category = Dead)
 	UAnimMontage* DeadAnimMontage;
 	UFUNCTION()
 	void Dead();

@@ -5,6 +5,7 @@
 #include "PersistentGame/GamePlayerState.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GAS/WAbilitySystemComponent.h"
+#include "GAS/WAttributeSet.h"
 #include "PersistentGame/PlayGameState.h"
 
 
@@ -40,6 +41,8 @@ void UWCharacterHUD::SetAttributeSetStatInfo(AGamePlayerState* PS)
 	{
 		SetAndBoundToGameplayAttribute(OwnerAbilitySystemComponent, UWAttributeSet::GetHealthAttribute(), UWAttributeSet::GetMaxHealthAttribute());
 	}
+
+	RegisterTagEvent();
 }
 
 void UWCharacterHUD::SetAndBoundToGameplayAttribute(UWAbilitySystemComponent* AbilitySystemComponent,
@@ -96,6 +99,85 @@ void UWCharacterHUD::MaxValueChanged(const FOnAttributeChangeData& Data)
 	SetValue(CachedValue, Data.NewValue);
 }
 
+void UWCharacterHUD::RegisterTagEvent()
+{
+	if (!OwnerAbilitySystemComponent) return;
+
+	bool bFound;
+
+	OwnerAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+		UWAttributeSet::GetAttackStatAttribute())
+		.AddUObject(this, &ThisClass::OnAttackStatChanged);
+	float AttackStat = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetAttackStatAttribute(), bFound);
+	if (bFound)
+	{
+		FString PowerString = FString::Printf(TEXT("공격력: %d"), static_cast<int>(AttackStat));
+		Power->SetText(FText::FromString(PowerString));
+		bFound = false;
+	}
+
+	OwnerAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+		UWAttributeSet::GetAddHealthStatAttribute())
+		.AddUObject(this, &ThisClass::OnAdditionalHealthStatChanged);
+	float AddHealthStat = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetAddHealthStatAttribute(), bFound);
+	if (bFound)
+	{
+		FString AddHealthString = FString::Printf(TEXT("체력증가: %d"), static_cast<int>(AddHealthStat));
+		AdditionalHealth->SetText(FText::FromString(AddHealthString));
+		bFound = false;
+	}
+
+	OwnerAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+		UWAttributeSet::GetDefenseStatAttribute())
+		.AddUObject(this, &ThisClass::OnDefenseStatChanged);
+	float DefenseStat = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetDefenseStatAttribute(), bFound);
+	if (bFound)
+	{
+		FString DefenceString = FString::Printf(TEXT("방어력: %.0f"), DefenseStat);
+		Defence->SetText(FText::FromString(DefenceString));
+		bFound = false;
+	}
+
+	OwnerAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+		UWAttributeSet::GetSpeedStatAttribute())
+		.AddUObject(this, &ThisClass::OnSpeedStatChanged);
+	float SpeedStat = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetSpeedStatAttribute(), bFound);
+	if (bFound)
+	{
+		FString SpeedString = FString::Printf(TEXT("스피드: %.2f"), SpeedStat/500.f);
+		Speed->SetText(FText::FromString(SpeedString));
+		bFound = false;
+	}
+}
+
+void UWCharacterHUD::OnAttackStatChanged(const FOnAttributeChangeData& Data)
+{
+	float AttackStat = Data.NewValue;
+	FString PowerString = FString::Printf(TEXT("공격력: %d"), static_cast<int>(AttackStat));
+	Power->SetText(FText::FromString(PowerString));
+}
+
+void UWCharacterHUD::OnAdditionalHealthStatChanged(const FOnAttributeChangeData& Data)
+{
+	float AddHealthStat = Data.NewValue;
+	FString AddHealthString = FString::Printf(TEXT("체력증가: %d"), static_cast<int>(AddHealthStat));
+	AdditionalHealth->SetText(FText::FromString(AddHealthString));
+}
+
+void UWCharacterHUD::OnDefenseStatChanged(const FOnAttributeChangeData& Data)
+{
+	float DefenseStat = Data.NewValue;
+	FString DefenceString = FString::Printf(TEXT("방어력: %.0f"), DefenseStat);
+	Defence->SetText(FText::FromString(DefenceString));
+}
+
+void UWCharacterHUD::OnSpeedStatChanged(const FOnAttributeChangeData& Data)
+{
+	float SpeedStat = Data.NewValue;
+	FString SpeedString = FString::Printf(TEXT("스피드: %.2f"), SpeedStat/500.f);
+	Speed->SetText(FText::FromString(SpeedString));
+}
+
 void UWCharacterHUD::TryGetPlayerState()
 {
 	GetWorld()->GetTimerManager().ClearTimer(ErrorTimerHandle);
@@ -137,44 +219,13 @@ float UWCharacterHUD::GetHealthBarPercentage()
 void UWCharacterHUD::SetState()
 {
 	if (AWPS)
-	{
-		bool bFound;
-		
+	{		
 		// 킬, 데스 출력
 		FString KillString = FString::Printf(TEXT("K : %d"), AWPS->GetKillPoints());
 		KillPoint->SetText(FText::FromString(KillString));
 		
 		FString DeathString = FString::Printf(TEXT("D : %d"), AWPS->GetDeathPoints());
 		DeathPoint->SetText(FText::FromString(DeathString));
-
-		if (!OwnerAbilitySystemComponent) return;
-		
-		// 캐릭터 스탯 출력
-		float Attack = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetAttackStatAttribute(), bFound);
-		if (bFound)
-		{
-			FString PowerString = FString::Printf(TEXT("공격력: %d"), (int)Attack);
-			Power->SetText(FText::FromString(PowerString));
-		}
-
-		FString AHString = FString::Printf(TEXT("추가체력: %d"), AWPS->CAdditionalHealth);
-		AdditionalHealth->SetText(FText::FromString(AHString));
-
-		float Defense = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetDefenseStatAttribute(), bFound);
-		if (bFound)
-		{
-			FString DefenceString = FString::Printf(TEXT("방어력: %.0f"), Defense);
-			Defence->SetText(FText::FromString(DefenceString));
-		}
-
-		float SpeedStat = OwnerAbilitySystemComponent->GetGameplayAttributeValue(UWAttributeSet::GetSpeedStatAttribute(), bFound);
-		if (bFound)
-		{
-			FString SpeedString = FString::Printf(TEXT("스피드: %.2f"), SpeedStat/500.f);
-			Speed->SetText(FText::FromString(SpeedString));
-		}
-		
-		GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
 	}
 }
 

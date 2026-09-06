@@ -17,7 +17,6 @@
 #include "Components/SceneComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetComponent.h"
-#include "Gimmick/Tower.h"
 #include "Minions/WMinionsCharacterBase.h"
 #include "Net/UnrealNetwork.h"
 #include "PersistentGame/GamePlayerController.h"
@@ -25,6 +24,7 @@
 #include "PersistentGame/PlayGameMode.h"
 #include "PersistentGame/PlayGameState.h"
 #include "UI/PlayerHPInfoBar.h"
+#include "Widget/RecallWidget.h"
 
 
 AWCharacterBase::AWCharacterBase()
@@ -92,8 +92,14 @@ void AWCharacterBase::ServerSideInit()
 	AbilitySystemComponent->ApplyInitialStat(StatTable, InitStatEffect, CharacterName);
 	AbilitySystemComponent->ApplyInitialEffects(InitialEffects);
 	AbilitySystemComponent->GiveInitialAbilities(Abilities, BasicAbilities);
-	AbilitySystemComponent->SetIsNotStartGame();
+	AbilitySystemComponent->SetIsNotGameStart();
 
+	if (!bHasBoundAttributeDelegate)
+	{
+		RecallAbilitySpecHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(RecallAbilityClass, 1.f, INDEX_NONE, this));
+		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(DeathAbilityClass, 1.f, INDEX_NONE, this));
+	}
+	
 	RegisterTagEvent();
 }
 
@@ -115,6 +121,8 @@ void AWCharacterBase::OnRep_PlayerState()
 
 void AWCharacterBase::RegisterTagEvent()
 {
+	if (bHasBoundAttributeDelegate) return;
+	
 	AbilitySystemComponent->RegisterGameplayTagEvent(
 		FGameplayTag::RequestGameplayTag("state.combat"),
 		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AWCharacterBase::OnCombatTagChanged);
@@ -122,6 +130,12 @@ void AWCharacterBase::RegisterTagEvent()
 	AbilitySystemComponent->RegisterGameplayTagEvent(
 		FGameplayTag::RequestGameplayTag(FName("ability.state.recall")),
 		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AWCharacterBase::OnRecallTagChanged);
+
+	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+			UWAttributeSet::GetHealthAttribute()
+		).AddUObject(this, &AWCharacterBase::OnHealthAttributeChanged);
+
+	bHasBoundAttributeDelegate = true;
 }
 
 void AWCharacterBase::OnCombatTagChanged(const FGameplayTag Tag, int32 NewCount)
@@ -150,6 +164,23 @@ void AWCharacterBase::OnRecallTagChanged(const FGameplayTag Tag, int32 NewCount)
 	else
 	{
 		GetWorld()->GetTimerManager().SetTimer(RecallZoomTimer, this, &ThisClass::UpdateRecallZoom, 0.01f, true);		
+	}
+}
+
+void AWCharacterBase::OnHealthAttributeChanged(const FOnAttributeChangeData& Data)
+{
+	if (!HasAuthority()) return;
+
+	if (IsRecalling) Server_CancelRecall();
+
+	float NewHealth = Data.NewValue;
+	if (NewHealth <= 0.f)
+	{
+		if (DeathEffectClass)
+		{
+			FGameplayEffectContextHandle Context = AbilitySystemComponent->MakeEffectContext();
+			AbilitySystemComponent->ApplyGameplayEffectToSelf(DeathEffectClass.GetDefaultObject(), 1.0f, Context);
+		}
 	}
 }
 
@@ -212,6 +243,7 @@ void AWCharacterBase::BeginPlay()
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance)
 	{
+		AnimInstanceClass = AnimInstance->GetClass();
 		Anim = Cast<UWCharAnimInstance>(AnimInstance);
 	}
 
@@ -255,6 +287,7 @@ void AWCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 		EnhancedInputComponent->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AWCharacterBase::Look);
 		EnhancedInputComponent->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AWCharacterBase::Move);
 		EnhancedInputComponent->BindAction(IA_Move, ETriggerEvent::Completed, this, &AWCharacterBase::StopMove);
+		EnhancedInputComponent->BindAction(IA_Recall, ETriggerEvent::Triggered, this, &AWCharacterBase::RecallAbilityInputPressed);
 
 		for (const TPair<EWAbilityInputID, UInputAction*>& InputActionPair : GameplayAbilityInputActions)
 		{
@@ -393,9 +426,7 @@ void AWCharacterBase::Move(const FInputActionValue& Value)
 	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("ability.state.movement.blocked")))
 		return;
 
-	FGameplayTagContainer CancelTags;
-	CancelTags.AddTag(FGameplayTag::RequestGameplayTag("ability.state.recall"));
-	GetAbilitySystemComponent()->CancelAbilities(&CancelTags);
+	Server_CancelRecall();
 	
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
@@ -484,22 +515,24 @@ void AWCharacterBase::VisibleOutline()
 	}
 }
 
-void AWCharacterBase::UpdateMovementSpeedData(float Multiplier)
+void AWCharacterBase::UpdateMovementSpeedData_Implementation(float Multiplier)
 {
 	if (GamePlayerState)
 	{
+		bool bFound;
+		float Speed = GamePlayerState->GetAbilitySystemComponent()->GetGameplayAttributeValue(UWAttributeSet::GetSpeedStatAttribute(), bFound);
 		// 속도
-		float CaculatedWalkSpeed = MovementSpeedData.MaxWalkSpeed * GamePlayerState->ItemSpeed;
+		float CaculatedWalkSpeed = Speed;
 		float FinalSpeed = CaculatedWalkSpeed * Multiplier;
 		GetCharacterMovement()->MaxWalkSpeed = FinalSpeed;
 
 		// 가속도
-		float CaculatedAcceleration = MovementSpeedData.MaxAcceleration * GamePlayerState->ItemSpeed;
+		float CaculatedAcceleration = MovementSpeedData.MaxAcceleration * (1 + (Speed - 500) / 500);
 		float FinalAcceleration = CaculatedAcceleration * Multiplier;
 		GetCharacterMovement()->MaxAcceleration = FinalAcceleration;
 
 		// 제동력
-		float CaculatedBrakingDeceleration = MovementSpeedData.BrakingDeceleration * GamePlayerState->ItemSpeed;
+		float CaculatedBrakingDeceleration = MovementSpeedData.BrakingDeceleration * (1 + (Speed - 500) / 500);
 		float FinalBrakingDeceleration = CaculatedBrakingDeceleration * Multiplier;
 		GetCharacterMovement()->BrakingDecelerationWalking = FinalBrakingDeceleration;
 
@@ -511,11 +544,6 @@ void AWCharacterBase::UpdateMovementSpeedData(float Multiplier)
 	}
 }
 
-/*void AWCharacterBase::NM_StopPlayMontage_Implementation()
-{
-	StopAnimMontage();
-}*/
-
 void AWCharacterBase::Server_EnterCombat_Implementation()
 {
 	if (!IsCombat)	IsCombat = true;
@@ -526,8 +554,51 @@ void AWCharacterBase::Server_EnterCombat_Implementation()
 	ServerChangeCombatMode(IsCombat);
 }
 
+void AWCharacterBase::StartRecall_Implementation(TSubclassOf<UUserWidget> RecallWidgetClass, float RecallTime)
+{
+	if (IsLocallyControlled())
+	{
+		RecallWidget = CreateWidget<URecallWidget>(Cast<AGamePlayerController>(GetController()), RecallWidgetClass);
+		if (RecallWidget)
+		{
+			RecallWidget->RecallTime = RecallTime;
+			RecallWidget->StartRecalling();
+			RecallWidget->AddToViewport();
+		}
+	}
+}
+
+void AWCharacterBase::EndRecall_Implementation()
+{
+	if (IsLocallyControlled())
+	{
+		if (RecallWidget && RecallWidget->IsInViewport())
+		{
+			RecallWidget->RemoveFromParent();
+			RecallWidget = nullptr;
+		}
+	}
+}
+
+void AWCharacterBase::MultiStopPlayMontage_Implementation()
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && AnimInstance->IsAnyMontagePlaying())
+	{
+		StopAnimMontage();
+	}
+}
+
+void AWCharacterBase::MultiClientSetRotation_Implementation(FRotator TargetRotation)
+{
+	SetActorRotation(TargetRotation);
+	GetController()->SetControlRotation(TargetRotation);
+}
+
 void AWCharacterBase::UpdateRecallZoom()
 {
+	if (ZoomTimer.IsValid()) GetWorld()->GetTimerManager().ClearTimer(ZoomTimer);
+	
 	if (IsLocallyControlled())
 	{
 		float TargetFOV = IsRecalling ? 60.f : 90.f;
@@ -606,12 +677,33 @@ bool AWCharacterBase::Server_SetControlRotationYaw_Validate(FRotator YawRotation
 	return true;
 }
 
-void AWCharacterBase::RecallAbilityInputPressed(const FInputActionValue& Value,
-	TSubclassOf<UGameplayAbility> AbilityClass)
+void AWCharacterBase::RecallAbilityInputPressed(const FInputActionValue& Value)
 {
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	if (IsRecalling)
 	{
-		ASC->TryActivateAbilityByClass(AbilityClass);
+		Server_CancelRecall();
+	}
+	else
+	{
+		Server_StartRecall();
+	}
+}
+
+void AWCharacterBase::Server_StartRecall_Implementation()
+{
+	if (IsRecalling) return;
+
+	AbilitySystemComponent->TryActivateAbility(RecallAbilitySpecHandle);
+}
+
+void AWCharacterBase::Server_CancelRecall_Implementation()
+{
+	if (!IsRecalling || !IsValid(this)) return;
+
+	MultiStopPlayMontage();
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->CancelAbilityHandle(RecallAbilitySpecHandle);
 	}
 }
 
@@ -642,155 +734,64 @@ void AWCharacterBase::ExecuteSkill(ESkillSlot SkillSlot)
 	// 자식 캐릭터 클래스에서 채움
 }
 
-void AWCharacterBase::BeingDead()
+void AWCharacterBase::Respawn_Client_Implementation()
 {
-	bIsDead = true;
+	GetController()->SetIgnoreLookInput(false);
+	ResetIMCOnRespawn();
+}
 
-	AGamePlayerController* PC = Cast<AGamePlayerController>(GetController());
+void AWCharacterBase::Respawn_Multicast_Implementation(FVector NewLocation, FRotator NewRotation)
+{
+	GetCharacterMovement()->SetComponentTickEnabled(true);
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
 	
-	C_BeingDead(PC);	// 클라에서 실행하는 것
-	S_BeingDead(PC, this);	// 서버에서 실행하는 것
-}
-
-void AWCharacterBase::S_BeingDead_Implementation(AGamePlayerController* PC, APawn* Player)
-{
-	bIsDead = true;
-
-	// 골드
-	APlayGameMode* GameMode = Cast<APlayGameMode>(GetWorld()->GetAuthGameMode());
-	if (GameMode)
-	{
-		GameMode->OnObjectKilled(this, LastHitBy);
-	}
+	TeleportTo(NewLocation, NewRotation);
 	
-	//캐릭터 리스폰
-	APlayGameState* GameState = Cast<APlayGameState>(GetWorld()->GetGameState());
-	if (PC && GameState && GameMode && HasAuthority())
-	{
-		PC->S_SetCurrentRespawnTime();
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetTeamIDCollision()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
-		PC->S_CountRespawnTime();
-		
-		GameState->GameManagedActors.Remove(Player);
-		
-		FTimerHandle RespawnTimerHandle;
-		GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle,
-			[Player, PC, GameMode]()
-			{
-				if (PC)
-				{
-					GameMode->RespawnPlayer(Player, PC);
-				}
-			}, GameState->RespawnTime, false);
-
-		FTimerHandle SpectatorCamera;
-		GetWorld()->GetTimerManager().SetTimer(SpectatorCamera,
-			[this, PC]()
-			{
-				PC->PossessToSpectatorCamera(FollowCamera->GetComponentLocation(), FollowCamera->GetComponentRotation());
-			}, 1.3f, false);
-	}
+	GetMesh()->bPauseAnims = false;
 	
-	NM_BeingDead();
-}
+	FGameplayTagContainer TagContainer;
+	TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("state.death")));
+	AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(TagContainer);
 
-void AWCharacterBase::NM_BeingDead_Implementation()
-{
-	//무브먼트, 콜리전 없애고 몽타주 출력
-	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
-	PlayAnimMontage(DeadAnimMontage);
+	GetMesh()->SetVisibility(true);
 
-	SetLifeSpan(1.3f);
-}
-
-void AWCharacterBase::C_BeingDead_Implementation(AGamePlayerController* PC)
-{
-	// CheckDistance 셋타이머 끄기
-	if (CheckTimerHandle.IsValid())
+	if (!HasAuthority() && !IsLocallyControlled())
 	{
-		GetWorld()->GetTimerManager().ClearTimer(CheckTimerHandle);
+		HPInfoBarComponent->SetHiddenInGame(false);
 	}
-	
-	// 클라에서 리스폰 위젯 출력
-	if (PC != nullptr)
-	{
-		//리스폰 실행
-		PC->ShowRespawnWidget();
-	}
-
-	/*//죽으면 카메라 움직임에 메쉬 따라 움직이지 않게 하기
-	this->bUseControllerRotationYaw = false;*/
-
-	// 죽으면 카메라 회전 못하게 하기
-	PC->SetIgnoreLookInput(true);
-}
-
-//포인트 데미지 주는 함수
-void AWCharacterBase::HandleApplyPointDamage(FHitResult LastHit)
-{
-	if (HasAuthority())
-	{
-		NM_SpawnHitEffect(LastHit.Location);
-		
-		AGamePlayerController* PC = Cast<AGamePlayerController>(GetController());
-		if (PC)
-		{
-			AGamePlayerState* PState = PC->GetPlayerState<AGamePlayerState>();
-			if (PState)
-			{
-				CharacterDamage = PState->CPower;
-			}
-		}
-		
-		UGameplayStatics::ApplyPointDamage(
-			LastHit.GetActor(),
-			CharacterDamage,
-			GetOwner()->GetActorForwardVector(),
-			LastHit,
-			GetInstigatorController(),
-			this,
-			UDamageType::StaticClass()
-		);
-	}
-}
-
-// 데미지 받는 함수
-float AWCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
-{
-	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-
-	if (HasAuthority())
-	{
-		Server_EnterCombat();
-
-		FTimerHandle SaveDamagedByEnemyTimer;
-		if (Cast<AWCharacterBase>(DamageCauser))
-		{
-			LastHitBy = EventInstigator;
-
-			if (SaveDamagedByEnemyTimer.IsValid())
-			{
-				GetWorld()->GetTimerManager().ClearTimer(SaveDamagedByEnemyTimer);
-			}
 			
-			GetWorld()->GetTimerManager().SetTimer(SaveDamagedByEnemyTimer, this, &ThisClass::ClearLastHitBy, 7.f, false);
-		}
-		
-		if (GamePlayerState)
-		{
-			GamePlayerState->Server_ApplyDamage(DamageAmount, LastHitBy, DamageCauser);
-		}
-	}
+	UE_LOG(LogTemp, Log, TEXT("리스폰!"));
+}
 
-	AWCharacterBase* AttackChar = Cast<AWCharacterBase>(DamageCauser);
-	if (TowerWithCharacterInside && AttackChar && TowerWithCharacterInside->OverlappingActors.Contains(AttackChar))
-	{
-		TowerWithCharacterInside->OverlappingActors.Swap(0, TowerWithCharacterInside->OverlappingActors.Find(AttackChar));
-	}
+void AWCharacterBase::Dead_Multicast_Implementation()
+{
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetTeamIDCollision()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	
-	return DamageAmount;
+	if (!HasAuthority() && !IsLocallyControlled())
+	{
+		HPInfoBarComponent->SetHiddenInGame(true);
+	}
+}
+
+void AWCharacterBase::ResetIMCOnRespawn()
+{
+	if (AGamePlayerController* PC = Cast<AGamePlayerController>(GetController()))
+	{
+		if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			{
+				// 기존 매핑 일시 제거 후 재적용하여 Enhanced Input 상태 머신 강제 초기화
+				Subsystem->ClearAllMappings(); // 또는 특정 IMC 제거 후 재추가
+				Subsystem->AddMappingContext(IMC_Asset, 0);
+			}
+		}
+	}
 }
 
 void AWCharacterBase::ClearLastHitBy()
