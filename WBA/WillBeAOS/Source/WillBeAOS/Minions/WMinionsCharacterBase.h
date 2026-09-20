@@ -32,8 +32,6 @@ public:
 	UCombatComponent* CombatComponent;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UWidgetComponent* WidgetComponent;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	class USphereComponent* PerceptionCollision;
 
 public:
 	AWMinionsCharacterBase();
@@ -77,13 +75,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UI")
 	float MaxWidgetScale = 1.f;
 	
-	AWCharacterBase* PlayerChar;
-	AGamePlayerController* PlayerController;
 	FTimerHandle MinionPCTimerManager;
-	
-	UFUNCTION()
-	void FindPlayerPC();
-	void FindPlayerPawn();
 
 	// 거리에 따라 위젯을 on/off 시키는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vision")
@@ -92,18 +84,20 @@ public:
 	virtual class UWidgetComponent* GetHPWidgetComponent() const override { return WidgetComponent;}
 	
 	// 타겟 인식 관련 로직
+	ECollisionChannel EnemyCollision;
+	
 	FTimerHandle CheckDistanceTimerHandle;
 
-	float VisibleWidgetDistance = 1200.f;
+	float DetectionRadius = 1000.f;
 
-	TSet<AActor*> CurrentObserveObjects;
+	UPROPERTY(BlueprintReadOnly)
+	TWeakObjectPtr<AActor> TargetActor;
 
-	void CheckDistanceToTarget();
+	void CheckOverlappedTarget();
+	void FindNewTarget();
 
-	UFUNCTION(BlueprintNativeEvent)
-	void CanAttackToTarget(AActor* WObject);
-	UFUNCTION(BlueprintNativeEvent)
-	void DetachToTarget(AActor* WObject);
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsTargetDetected = false;
 
 public://트랙 관련
 	UPROPERTY(Replicated,EditAnywhere, BlueprintReadOnly, Category = "Track")

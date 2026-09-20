@@ -6,7 +6,6 @@
 AMinionsSpawner::AMinionsSpawner()
 {
 	PrimaryActorTick.bCanEverTick = true;
-
 }
 
 void AMinionsSpawner::BeginPlay()
@@ -19,7 +18,10 @@ void AMinionsSpawner::BeginPlay()
 		GM->OnGameEnd.AddUObject(this, &ThisClass::GameStateIsEnd);
 	}
 
-	//StartSpawnMinions();
+	if (HasAuthority())
+	{
+		StartSpawnMinions();
+	}
 }
 
 void AMinionsSpawner::GameStateIsEnd()
@@ -30,7 +32,7 @@ void AMinionsSpawner::GameStateIsEnd()
 void AMinionsSpawner::StartSpawnMinions()
 {
 	SpawnMinions();
-	GetWorld()->GetTimerManager().SetTimer(InitGameTimerHandle, this, &ThisClass::SpawnMinions, 1.f, false);
+	//GetWorld()->GetTimerManager().SetTimer(InitGameTimerHandle, this, &ThisClass::SpawnMinions, 1.f, false);
 }
 
 void AMinionsSpawner::SpawnMinions_Implementation()
@@ -55,9 +57,9 @@ void AMinionsSpawner::SpawnMinions_Implementation()
 		SpawnMinion->SpawnDefaultController();
 	}
 
-	if (SpawnCount < 3)
+	if (SpawnCount < 33)
 	{
-		GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, this, &ThisClass::SpawnMinions, 1.f, false);
+		GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, this, &ThisClass::SpawnMinions, 0.7f, false);
 	}
 	else
 	{

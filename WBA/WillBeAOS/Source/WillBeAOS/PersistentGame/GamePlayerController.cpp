@@ -19,7 +19,7 @@ void AGamePlayerController::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("controller가 준비되었습니다."));
 
-	if (IsLocalPlayerController() && !(GIsEditor && GWorld->IsPlayInEditor()))
+	/*if (IsLocalPlayerController() && !(GIsEditor && GWorld->IsPlayInEditor()))
 	{
 		LoadingWidget = CreateWidget<UUserWidget>(this, ToInGameLoadingWidgetClass);
 		if (LoadingWidget)
@@ -28,7 +28,7 @@ void AGamePlayerController::BeginPlay()
 		}
 		
 		CheckCharacterSelectLevelLoaded();
-	}
+	}*/
 
 	//에디터 테스트
 	if (IsLocalController() && GetWorld() && GetWorld()->IsPlayInEditor())

@@ -5,11 +5,12 @@
 #include "UObject/Interface.h"
 #include "GetInfoInterface.generated.h"
 
-namespace TeamCollision
+namespace CollisionInfo
 {
 	constexpr ECollisionChannel AOS_Pawn = ECC_GameTraceChannel1;
 	constexpr ECollisionChannel BlueTeam = ECC_GameTraceChannel2;
 	constexpr ECollisionChannel RedTeam = ECC_GameTraceChannel3;
+	constexpr ECollisionChannel Perception = ECC_GameTraceChannel4;
 }
 
 UINTERFACE(MinimalAPI)

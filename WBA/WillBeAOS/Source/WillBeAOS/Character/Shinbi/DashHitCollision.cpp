@@ -57,11 +57,11 @@ void ADashHitCollision::CheckHitPath()
 	ECollisionChannel EnemyCollision;
 	if (Player->GetTeamID() == E_TeamID::Blue)
 	{
-		EnemyCollision = TeamCollision::RedTeam;
+		EnemyCollision = CollisionInfo::RedTeam;
 	}
 	else
 	{
-		EnemyCollision = TeamCollision::BlueTeam;
+		EnemyCollision = CollisionInfo::BlueTeam;
 	}
 
 	FCollisionObjectQueryParams ObjectParams;

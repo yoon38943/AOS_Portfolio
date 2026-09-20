@@ -101,9 +101,9 @@ void UGA_Wraith_SniperAttack::LineTraceHit(FVector TraceStart, FVector TraceEnd,
 
 	ECollisionChannel EnemyChannel;
 	if (Avatar->GetTeamID() == E_TeamID::Blue)
-		EnemyChannel = TeamCollision::RedTeam;
+		EnemyChannel = CollisionInfo::RedTeam;
 	else
-		EnemyChannel = TeamCollision::BlueTeam;
+		EnemyChannel = CollisionInfo::BlueTeam;
 	
 	FCollisionObjectQueryParams ObjectQuery;
 	ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);

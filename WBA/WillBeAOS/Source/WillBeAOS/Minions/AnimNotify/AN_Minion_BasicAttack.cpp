@@ -44,11 +44,11 @@ void UAN_Minion_BasicAttack::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimS
 	if (!Minion) return;
 	if (Minion->GetTeamID() == E_TeamID::Blue)
 	{
-		EnemyCollision = TeamCollision::RedTeam;
+		EnemyCollision = CollisionInfo::RedTeam;
 	}
 	else
 	{
-		EnemyCollision = TeamCollision::BlueTeam;
+		EnemyCollision = CollisionInfo::BlueTeam;
 	}
 
 	FCollisionObjectQueryParams ObjectParams;

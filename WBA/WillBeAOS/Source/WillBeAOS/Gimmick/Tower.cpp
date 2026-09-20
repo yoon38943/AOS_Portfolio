@@ -292,11 +292,11 @@ void ATower::SetTeamCollision()
 {
 	if (TeamID == E_TeamID::Blue)
 	{
-		HitCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
+		HitCollision->SetCollisionObjectType(CollisionInfo::BlueTeam);
 	}
 	if (TeamID == E_TeamID::Red)
 	{
-		HitCollision->SetCollisionObjectType(TeamCollision::RedTeam);
+		HitCollision->SetCollisionObjectType(CollisionInfo::RedTeam);
 	}
 }
 

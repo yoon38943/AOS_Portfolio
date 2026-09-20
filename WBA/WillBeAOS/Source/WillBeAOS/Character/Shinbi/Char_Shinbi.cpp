@@ -62,11 +62,11 @@ TArray<AActor*> AChar_Shinbi::GetTartgetInCenter()
 	ECollisionChannel EnemyChannel;
 	if (GetTeamID() == E_TeamID::Blue)
 	{
-		EnemyChannel = TeamCollision::RedTeam;
+		EnemyChannel = CollisionInfo::RedTeam;
 	}
 	else
 	{
-		EnemyChannel = TeamCollision::BlueTeam;
+		EnemyChannel = CollisionInfo::BlueTeam;
 	}
 	
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;

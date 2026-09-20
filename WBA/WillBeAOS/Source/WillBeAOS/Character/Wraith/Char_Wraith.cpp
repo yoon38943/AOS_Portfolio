@@ -246,11 +246,11 @@ TOptional<FHitResult> AChar_Wraith::CheckTargettingInCenter()
 	ECollisionChannel EnemyChannel;
 	if (GetTeamID() == E_TeamID::Blue)
 	{
-		EnemyChannel = TeamCollision::RedTeam;
+		EnemyChannel = CollisionInfo::RedTeam;
 	}
 	else
 	{
-		EnemyChannel = TeamCollision::BlueTeam;
+		EnemyChannel = CollisionInfo::BlueTeam;
 	}
 
 	FCollisionObjectQueryParams ObjectQuery;

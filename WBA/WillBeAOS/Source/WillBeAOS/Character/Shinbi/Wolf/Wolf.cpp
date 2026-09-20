@@ -67,11 +67,11 @@ void AWolf::Explosion(const FVector& ImpactLocation)
 	ECollisionChannel EnemyCollision;
 	if (WolfInstigator->GetTeamID() == E_TeamID::Blue)
 	{
-		EnemyCollision = TeamCollision::RedTeam;
+		EnemyCollision = CollisionInfo::RedTeam;
 	}
 	else
 	{
-		EnemyCollision = TeamCollision::BlueTeam;
+		EnemyCollision = CollisionInfo::BlueTeam;
 	}
 
 	FCollisionObjectQueryParams ObjectParams;
@@ -141,11 +141,11 @@ void AWolf::CheckPathHit()
 	ECollisionChannel EnemyCollision;
 	if (WolfInstigator->GetTeamID() == E_TeamID::Blue)
 	{
-		EnemyCollision = TeamCollision::RedTeam;
+		EnemyCollision = CollisionInfo::RedTeam;
 	}
 	else
 	{
-		EnemyCollision = TeamCollision::BlueTeam;
+		EnemyCollision = CollisionInfo::BlueTeam;
 	}
 
 	FCollisionObjectQueryParams ObjectParams;

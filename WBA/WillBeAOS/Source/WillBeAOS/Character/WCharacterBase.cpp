@@ -311,11 +311,11 @@ void AWCharacterBase::SetTeamCollision()
 	//팀 정보는 GameMode에서 리스폰시킬 때 넣고 있음
 	if (GetTeamID() == E_TeamID::Blue)
 	{
-		TeamTraceCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
+		TeamTraceCollision->SetCollisionObjectType(CollisionInfo::BlueTeam);
 	}
 	if (GetTeamID() == E_TeamID::Red)
 	{
-		TeamTraceCollision->SetCollisionObjectType(TeamCollision::RedTeam);
+		TeamTraceCollision->SetCollisionObjectType(CollisionInfo::RedTeam);
 	}
 }
 

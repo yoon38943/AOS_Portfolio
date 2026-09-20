@@ -81,8 +81,8 @@ void UGA_Shinbi_RMSkill::StartDash()
 	if (Collision)
 	{
 		Collision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
-		Collision->SetCollisionResponseToChannel(TeamCollision::BlueTeam, ECR_Ignore);
-		Collision->SetCollisionResponseToChannel(TeamCollision::RedTeam, ECR_Ignore);
+		Collision->SetCollisionResponseToChannel(CollisionInfo::BlueTeam, ECR_Ignore);
+		Collision->SetCollisionResponseToChannel(CollisionInfo::RedTeam, ECR_Ignore);
 	}
 	
 	FRotator ControlRot = Avatar->GetControlRotation();
@@ -123,8 +123,8 @@ void UGA_Shinbi_RMSkill::OnDashLanded()
 	if (Collision)
 	{
 		Collision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Block);
-		Collision->SetCollisionResponseToChannel(TeamCollision::BlueTeam, ECR_Block);
-		Collision->SetCollisionResponseToChannel(TeamCollision::RedTeam, ECR_Block);
+		Collision->SetCollisionResponseToChannel(CollisionInfo::BlueTeam, ECR_Block);
+		Collision->SetCollisionResponseToChannel(CollisionInfo::RedTeam, ECR_Block);
 	}
 
 	if (!DashMontageEnded)

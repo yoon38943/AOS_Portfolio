@@ -1,7 +1,4 @@
 #include "WMinionsCharacterBase.h"
-
-#include "AbilitySystemGlobals.h"
-#include "../Character/CombatComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -12,20 +9,17 @@
 #include "HealthBar.h"
 #include "Character/WCharacterBase.h"
 #include "Component/VisibleWidgetComponent.h"
+#include "Engine/OverlapResult.h"
 #include "GAS/WAbilitySystemComponent.h"
 #include "GAS/WAttributeSet.h"
 #include "Net/UnrealNetwork.h"
-#include "PersistentGame/GamePlayerController.h"
 #include "PersistentGame/PlayGameMode.h"
 #include "PersistentGame/PlayGameState.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 
 AWMinionsCharacterBase::AWMinionsCharacterBase()
 {
-	CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
-	CombatComponent->SetCombatEnable(true);
-	CombatComponent->SetCollisionMesh(GetMesh());
-
 	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
 	WidgetComponent->SetupAttachment(GetMesh());
 	WidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 200.f));
@@ -33,6 +27,10 @@ AWMinionsCharacterBase::AWMinionsCharacterBase()
 
 	WAbilitySystemComponent = CreateDefaultSubobject<UWAbilitySystemComponent>(TEXT("ASC"));
 	WAttributeSet = CreateDefaultSubobject<UWAttributeSet>(TEXT("AttributeSet"));
+	
+	TeamTraceCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	TeamTraceCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	TeamTraceCollision->SetCollisionResponseToChannel(CollisionInfo::Perception, ECR_Overlap);
 
 	bAlwaysRelevant = true;
 	
@@ -43,13 +41,17 @@ AWMinionsCharacterBase::AWMinionsCharacterBase()
 
 void AWMinionsCharacterBase::SetTeamCollision()
 {
+	TeamTraceCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	
 	if (TeamID == E_TeamID::Blue)
 	{
-		TeamTraceCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
+		TeamTraceCollision->SetCollisionObjectType(CollisionInfo::BlueTeam);
+		EnemyCollision = CollisionInfo::RedTeam;
 	}
-	if (TeamID == E_TeamID::Red)
+	else
 	{
-		TeamTraceCollision->SetCollisionObjectType(TeamCollision::RedTeam);
+		TeamTraceCollision->SetCollisionObjectType(CollisionInfo::RedTeam);
+		EnemyCollision = CollisionInfo::BlueTeam;
 	}
 }
 
@@ -103,9 +105,7 @@ void AWMinionsCharacterBase::BeginPlay()
 	}
 
 	RegisterTagEvent();
-
 	SetTeamCollision();
-	FindPlayerPC();
 
 	if (HasAuthority())
 	{		
@@ -124,14 +124,14 @@ void AWMinionsCharacterBase::BeginPlay()
 		GetWorld()->GetTimerManager().SetTimer(
 			CheckDistanceTimerHandle,
 			this,
-			&ThisClass::CheckDistanceToTarget,
+			&ThisClass::CheckOverlappedTarget,
 			0.2f,
 			true
 		);
 	}
 
 	if (!HasAuthority())
-	{
+	{		
 		UHealthBar* HpInfoBar = Cast<UHealthBar>(WidgetComponent->GetWidget());
 		if (HpInfoBar)
 		{
@@ -148,73 +148,66 @@ void AWMinionsCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	GetWorld()->GetTimerManager().ClearAllTimersForObject(this);
 }
 
-void AWMinionsCharacterBase::FindPlayerPC()
-{
-	if (HasAuthority()) return;
-	
-	PlayerController = Cast<AGamePlayerController>(GetWorld()->GetFirstPlayerController());
-	
-	if (!PlayerController && MinionPCTimerManager.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("PlayerController is null"));
-		GetWorldTimerManager().SetTimer(MinionPCTimerManager, this, &ThisClass::FindPlayerPC, 0.2f, false);
-	}
-	else
-	{
-		if (MinionPCTimerManager.IsValid())
-			GetWorldTimerManager().ClearTimer(MinionPCTimerManager);
-	}
-}
-
-void AWMinionsCharacterBase::FindPlayerPawn()
-{
-	if (HasAuthority()) return;
-	
-	if (PlayerController)
-	{
-		PlayerChar = Cast<AWCharacterBase>(PlayerController->GetPawn());
-	}
-}
-
-void AWMinionsCharacterBase::CheckDistanceToTarget()
+void AWMinionsCharacterBase::CheckOverlappedTarget()
 {
 	if (bIsDead) return;
-		
-	FVector MyLocation = GetActorLocation();
-	float VisibleDistanceSqr = FMath::Square(VisibleWidgetDistance);
 
-	APlayGameState* GS = Cast<APlayGameState>(GetWorld()->GetGameState());
-	if (GS && GS->GameManagedActors.Num() > 0)
+	if (AAOSCharacter* CharTarget = Cast<AAOSCharacter>(TargetActor.Get()))
 	{
-		for (AActor* Actor : GS->GameManagedActors)
+		bool bTargetValid = !CharTarget->bIsDead &&
+			FVector::DistSquared(GetActorLocation(), CharTarget->GetActorLocation()) <= FMath::Square(DetectionRadius);
+
+		if (bTargetValid) return;		
+	}
+	else if (AAOSActor* ActorTarget = Cast<AAOSActor>(TargetActor.Get()))
+	{
+		return;
+	}
+
+	TargetActor.Reset();
+	bIsTargetDetected = false;
+
+	FindNewTarget();
+}
+
+void AWMinionsCharacterBase::FindNewTarget()
+{
+	FCollisionObjectQueryParams DetectionObjectParams = FCollisionObjectQueryParams();
+	DetectionObjectParams.AddObjectTypesToQuery(EnemyCollision);
+
+	TArray<FOverlapResult> OverlapResults;
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MinionDetectionOverlap), false);
+	QueryParams.AddIgnoredActor(this);
+
+	GetWorld()->OverlapMultiByObjectType(
+		OverlapResults,
+		GetActorLocation(),
+		FQuat::Identity,
+		DetectionObjectParams,
+		FCollisionShape::MakeSphere(DetectionRadius),
+		QueryParams);
+
+	TWeakObjectPtr<AActor> NearestActor = nullptr;
+	float LowDistance = MAX_FLT;
+	for (const auto& Result : OverlapResults)
+	{
+		if (!IsValid(Result.GetActor())) continue;
+		
+		AActor* OtherActor = Result.GetActor();
+		AAOSCharacter* OtherCharacter = Cast<AAOSCharacter>(OtherActor);
+		if (OtherCharacter && OtherCharacter->bIsDead == true) continue;
+
+		float Distance = FVector::DistSquared(GetActorLocation(), OtherActor->GetActorLocation());
+		if (Distance < LowDistance)
 		{
-			if (!IsValid(Actor) || Actor == this) continue;
-
-			float DistSqr = FVector::DistSquared(MyLocation, Actor->GetActorLocation());
-			bool bShouldShow = DistSqr <= VisibleDistanceSqr;
-
-			if (bShouldShow && !CurrentObserveObjects.Contains(Actor))
-			{
-				CurrentObserveObjects.Add(Actor);
-				CanAttackToTarget(Actor);
-			}
-			else if (!bShouldShow && CurrentObserveObjects.Contains(Actor))
-			{
-				CurrentObserveObjects.Remove(Actor);
-				DetachToTarget(Actor);
-			}
+			NearestActor = OtherActor;
+			LowDistance = Distance;
 		}
 	}
-}
 
-void AWMinionsCharacterBase::DetachToTarget_Implementation(AActor* WObject)
-{
-	// 블루프린트 내 구현
-}
-
-void AWMinionsCharacterBase::CanAttackToTarget_Implementation(AActor* WObject)
-{
-	// 블루프린트 내 구현
+	TargetActor = NearestActor;
+	if (TargetActor.IsValid()) bIsTargetDetected = true;
 }
 
 void AWMinionsCharacterBase::StartSetHPbarColor()
@@ -240,19 +233,8 @@ void AWMinionsCharacterBase::StartSetHPbarColor()
 
 void AWMinionsCharacterBase::SetHPbarColor(FLinearColor HealthBarColor)
 {
-	if (!WidgetComponent || !WidgetComponent->GetWidget()) {
-		GetWorld()->GetTimerManager().SetTimer(HPbarColorTimerHandle, [this, HealthBarColor]()
-		{
-			SetHPbarColor(HealthBarColor);
-		}, 0.1f, false);
-		return;
-	}
-
 	UHealthBar* Widget = Cast<UHealthBar>(WidgetComponent->GetWidget());
-	if (!Widget || !Widget->HealthBar)
-	{
-		return;
-	}
+	if (!Widget || !Widget->HealthBar) return;
 	
 	if (Widget->HealthBar)
 	{

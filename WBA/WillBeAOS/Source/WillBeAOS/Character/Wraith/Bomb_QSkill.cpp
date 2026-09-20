@@ -46,11 +46,11 @@ void ABomb_QSkill::BeginPlay()
 
 	if (TeamID == E_TeamID::Blue)
 	{
-		CollisionComp->SetCollisionObjectType(TeamCollision::RedTeam);
+		CollisionComp->SetCollisionObjectType(CollisionInfo::RedTeam);
 	}
 	else
 	{
-		CollisionComp->SetCollisionObjectType(TeamCollision::BlueTeam);
+		CollisionComp->SetCollisionObjectType(CollisionInfo::BlueTeam);
 	}
 
 	if (!InitialVelocity.IsZero() && ProjectileMovement)
@@ -100,11 +100,11 @@ void ABomb_QSkill::Explode()
 	ECollisionChannel EnemyCollision;
 	if (TeamID == E_TeamID::Blue)
 	{
-		EnemyCollision = TeamCollision::RedTeam;
+		EnemyCollision = CollisionInfo::RedTeam;
 	}
 	else
 	{
-		EnemyCollision = TeamCollision::BlueTeam;
+		EnemyCollision = CollisionInfo::BlueTeam;
 	}
 
 	FCollisionObjectQueryParams ObjectParams;

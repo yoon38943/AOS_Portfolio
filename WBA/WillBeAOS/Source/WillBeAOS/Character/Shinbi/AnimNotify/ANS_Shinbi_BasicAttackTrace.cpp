@@ -50,11 +50,11 @@ void UANS_Shinbi_BasicAttackTrace::NotifyTick(USkeletalMeshComponent* MeshComp, 
 	if (!Player) return;
 	if (Player->GetTeamID() == E_TeamID::Blue)
 	{
-		EnemyCollision = TeamCollision::RedTeam;
+		EnemyCollision = CollisionInfo::RedTeam;
 	}
 	else
 	{
-		EnemyCollision = TeamCollision::BlueTeam;
+		EnemyCollision = CollisionInfo::BlueTeam;
 	}
 
 	FCollisionObjectQueryParams ObjectParams;

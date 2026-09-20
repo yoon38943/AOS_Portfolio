@@ -31,15 +31,15 @@ void ACircleDamageField::InitField(AActor* InOwner, const float InRadius, const 
 
 	if (Player->GetTeamID() == E_TeamID::Blue)
 	{
-		DamageCollision->SetCollisionObjectType(TeamCollision::BlueTeam);
-		DamageCollision->SetCollisionResponseToChannel(TeamCollision::BlueTeam, ECR_Ignore);
-		DamageCollision->SetCollisionResponseToChannel(TeamCollision::RedTeam, ECR_Overlap);
+		DamageCollision->SetCollisionObjectType(CollisionInfo::BlueTeam);
+		DamageCollision->SetCollisionResponseToChannel(CollisionInfo::BlueTeam, ECR_Ignore);
+		DamageCollision->SetCollisionResponseToChannel(CollisionInfo::RedTeam, ECR_Overlap);
 	}
 	else
 	{
-		DamageCollision->SetCollisionObjectType(TeamCollision::RedTeam);
-		DamageCollision->SetCollisionResponseToChannel(TeamCollision::RedTeam, ECR_Ignore);
-		DamageCollision->SetCollisionResponseToChannel(TeamCollision::BlueTeam, ECR_Overlap);
+		DamageCollision->SetCollisionObjectType(CollisionInfo::RedTeam);
+		DamageCollision->SetCollisionResponseToChannel(CollisionInfo::RedTeam, ECR_Ignore);
+		DamageCollision->SetCollisionResponseToChannel(CollisionInfo::BlueTeam, ECR_Overlap);
 	}
 	
 	TArray<AActor*> OverlappingActors;

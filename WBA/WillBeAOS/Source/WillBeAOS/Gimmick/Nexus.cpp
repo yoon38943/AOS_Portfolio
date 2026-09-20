@@ -37,11 +37,11 @@ void ANexus::SetTeamCollision()
 {
 	if (GetTeamID() == E_TeamID::Blue)
 	{
-		NexusMeshComponent->SetCollisionObjectType(TeamCollision::BlueTeam);
+		NexusMeshComponent->SetCollisionObjectType(CollisionInfo::BlueTeam);
 	}
 	if (GetTeamID() == E_TeamID::Red)
 	{
-		NexusMeshComponent->SetCollisionObjectType(TeamCollision::RedTeam);
+		NexusMeshComponent->SetCollisionObjectType(CollisionInfo::RedTeam);
 	}
 }
 
